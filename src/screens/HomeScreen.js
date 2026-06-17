@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { colors } from '../constants/colors';
-import { properties, propertyTypes } from '../data/mockData';
+import { propertyTypes } from '../data/mockData';
 import PropertyCard from '../components/PropertyCard';
 import FilterButton from '../components/FilterButton';
 import SearchBar from '../components/SearchBar';
@@ -22,9 +22,11 @@ import BottomNavBar from '../components/BottomNavBar';
 import FilterModal, { defaultFilters } from '../components/FilterModal';
 import EmptyState from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
+import { useAppData } from '../context/AppDataContext';
 import { filterProperties, countActiveFilters } from '../utils/filterProperties';
 
 const HomeScreen = ({ navigation }) => {
+  const { propertiesList } = useAppData();
   const { user } = useAuth();
   const firstName = (user?.name || 'there').split(' ')[0];
   const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
@@ -67,7 +69,7 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const filteredProperties = filterProperties(properties, {
+  const filteredProperties = filterProperties(propertiesList || [], {
     filters,
     query: searchQuery,
   });

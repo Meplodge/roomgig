@@ -47,7 +47,7 @@ const BottomNavBar = ({ activeTab, onTabPress, navigation }) => {
                   color={isActive ? colors.surface : colors.textSecondary}
                 />
               </View>
-              {isActive && <Text style={styles.activeLabel}>{tab.label}</Text>}
+              <Text style={[styles.label, isActive && styles.activeLabel]}>{tab.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   tab: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -100,12 +100,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  label: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 11,
+    marginTop: 0.3,
+  },
   activeLabel: {
     color: colors.primary,
     fontWeight: '700',
-    fontSize: 13,
-    marginLeft: 8,
-    marginRight: 6,
   },
 });
 

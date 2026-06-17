@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,74 +9,67 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { useMessages } from '../context/MessagesContext';
 
 const ChatScreen = ({ route, navigation }) => {
   const { chat } = route.params;
+  const { getMessages, sendMessage: sendMessageToContext, markAsRead } = useMessages();
   const [message, setMessage] = useState('');
   const scrollViewRef = useRef(null);
 
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      text: 'Hi! I\'m interested in your property.',
-      sender: 'user',
-      time: '10:30 AM',
-    },
-    {
-      id: '2',
-      text: 'Hello! Thanks for your interest. The property is still available for viewing.',
-      sender: 'other',
-      time: '10:32 AM',
-    },
-    {
-      id: '3',
-      text: 'Great! When can I schedule a tour?',
-      sender: 'user',
-      time: '10:35 AM',
-    },
-    {
-      id: '4',
-      text: 'The property is still available for viewing.',
-      sender: 'other',
-      time: '10:38 AM',
-    },
-  ]);
+  const messages = getMessages(chat.id);
+
+  useEffect(() => {
+    markAsRead(chat.id);
+  }, [chat.id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages.length]);
 
   const sendMessage = () => {
     if (!message.trim()) return;
-
-    const newMessage = {
-      id: Date.now().toString(),
-      text: message,
-      sender: 'user',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages([...messages, newMessage]);
+    sendMessageToContext(chat.id, message);
     setMessage('');
+  };
 
-    // Scroll to bottom
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+  const handleCall = async () => {
+    if (!chat.phone) {
+      Alert.alert('No Phone Number', 'This contact does not have a phone number available.');
+      return;
+    }
 
-    // Simulate reply
-    setTimeout(() => {
-      const replyMessage = {
-        id: (Date.now() + 1).toString(),
-        text: 'Thanks for your message! I\'ll get back to you shortly.',
-        sender: 'other',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, replyMessage]);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }, 1500);
+    Alert.alert(
+      'Make Call',
+      `Call ${chat.name} at ${chat.phone}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call',
+          onPress: async () => {
+            try {
+              const supported = await Linking.canOpenURL(`tel:${chat.phone}`);
+              if (supported) {
+                await Linking.openURL(`tel:${chat.phone}`);
+              } else {
+                Alert.alert('Error', 'Phone calls are not supported on this device.');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Unable to make the call.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -93,7 +86,7 @@ const ChatScreen = ({ route, navigation }) => {
             <Text style={styles.headerProperty}>{chat.property}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.iconButton}>
+        <TouchableOpacity style={styles.iconButton} onPress={handleCall}>
           <Ionicons name="call-outline" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>

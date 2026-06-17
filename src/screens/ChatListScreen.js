@@ -11,38 +11,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import BottomNavBar from '../components/BottomNavBar';
+import EmptyState from '../components/EmptyState';
+import { useMessages } from '../context/MessagesContext';
 
-const mockChats = [
-  {
-    id: '1',
-    name: 'Christopher Estate',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    lastMessage: 'The property is still available for viewing.',
-    time: '2m ago',
-    unread: 2,
-    property: 'Suncrest Manor',
-  },
-  {
-    id: '2',
-    name: 'Premium Homes',
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    lastMessage: 'Would you like to schedule a tour?',
-    time: '1h ago',
-    unread: 0,
-    property: 'Luxury 3BHK',
-  },
-  {
-    id: '3',
-    name: 'Elite Properties',
-    avatar: 'https://randomuser.me/api/portraits/men/67.jpg',
-    lastMessage: 'Thanks for your interest! Let me know if you have any questions.',
-    time: '3h ago',
-    unread: 1,
-    property: 'Green Valley Villa',
-  },
-];
+const formatRelativeTime = (timestamp) => {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
+};
 
 const ChatListScreen = ({ navigation }) => {
+  const { conversations } = useMessages();
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -58,33 +44,43 @@ const ChatListScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {mockChats.map((chat) => (
-          <TouchableOpacity
-            key={chat.id}
-            style={styles.chatItem}
-            onPress={() => navigation.navigate('Chat', { chat })}
-          >
-            <View style={styles.avatarContainer}>
-              <Image source={{ uri: chat.avatar }} style={styles.avatar} />
-              {chat.unread > 0 && <View style={styles.unreadBadge} />}
-            </View>
-            <View style={styles.chatInfo}>
-              <View style={styles.chatHeader}>
-                <Text style={styles.chatName}>{chat.name}</Text>
-                <Text style={styles.chatTime}>{chat.time}</Text>
+        {conversations.length === 0 ? (
+          <EmptyState
+            icon="chatbubbles-outline"
+            title="No Messages Yet"
+            message="When you contact a property host, your conversations will appear here."
+            actionText="Browse Properties"
+            onAction={() => navigation.navigate('Home')}
+          />
+        ) : (
+          conversations.map((chat) => (
+            <TouchableOpacity
+              key={chat.id}
+              style={styles.chatItem}
+              onPress={() => navigation.navigate('Chat', { chat })}
+            >
+              <View style={styles.avatarContainer}>
+                <Image source={{ uri: chat.avatar }} style={styles.avatar} />
+                {chat.unread > 0 && <View style={styles.unreadBadge} />}
               </View>
-              <Text style={styles.propertyName}>{chat.property}</Text>
-              <Text style={styles.lastMessage} numberOfLines={1}>
-                {chat.lastMessage}
-              </Text>
-            </View>
-            {chat.unread > 0 && (
-              <View style={styles.unreadCount}>
-                <Text style={styles.unreadCountText}>{chat.unread}</Text>
+              <View style={styles.chatInfo}>
+                <View style={styles.chatHeader}>
+                  <Text style={styles.chatName}>{chat.name}</Text>
+                  <Text style={styles.chatTime}>{formatRelativeTime(chat.updatedAt)}</Text>
+                </View>
+                <Text style={styles.propertyName}>{chat.property}</Text>
+                <Text style={styles.lastMessage} numberOfLines={1}>
+                  {chat.lastMessage}
+                </Text>
               </View>
-            )}
-          </TouchableOpacity>
-        ))}
+              {chat.unread > 0 && (
+                <View style={styles.unreadCount}>
+                  <Text style={styles.unreadCountText}>{chat.unread}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       <BottomNavBar activeTab="messages" navigation={navigation} />

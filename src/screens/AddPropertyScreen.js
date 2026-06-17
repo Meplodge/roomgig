@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,16 +10,19 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  Modal,
 } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { colors } from '../constants/colors';
 import { useAppData } from '../context/AppDataContext';
 import ErrorState from '../components/ErrorState';
 
 const AddPropertyScreen = ({ navigation }) => {
-  const { addBooking } = useAppData();
+  const { addBooking, addProperty } = useAppData();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
@@ -36,6 +39,52 @@ const AddPropertyScreen = ({ navigation }) => {
   });
   const [images, setImages] = useState([]);
   const [focusedInput, setFocusedInput] = useState(null);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 40.7128,
+    longitude: -74.0060,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  const getCurrentLocation = async () => {
+    try {
+      setLoadingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Needed',
+          'Location permission is required to detect your current position. You can still select a location manually.'
+        );
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = position.coords;
+      setMapRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
+      setSelectedLocation({ latitude, longitude });
+    } catch (err) {
+      Alert.alert('Location Error', 'Unable to fetch your current location. Please select a location manually.');
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showMapModal) {
+      getCurrentLocation();
+    }
+  }, [showMapModal]);
 
   const pickImage = async () => {
     try {
@@ -73,6 +122,11 @@ const AddPropertyScreen = ({ navigation }) => {
       return;
     }
 
+    if (!selectedLocation) {
+      Alert.alert('Error', 'Please select a location on the map');
+      return;
+    }
+
     if (images.length === 0) {
       Alert.alert('Error', 'Please add at least one image');
       return;
@@ -100,12 +154,13 @@ const AddPropertyScreen = ({ navigation }) => {
         rating: 0,
         reviews: 0,
         isFavorite: false,
-        latitude: 40.7128 + Math.random() * 0.1,
-        longitude: -74.0060 + Math.random() * 0.1,
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
       };
 
-      // In a real app, this would be saved to a backend
-      // For now, we'll just show success and navigate back
+      // Save property to context
+      addProperty(newProperty);
+
       setLoading(false);
       Alert.alert('Success', 'Property added successfully!', [
         {
@@ -118,6 +173,24 @@ const AddPropertyScreen = ({ navigation }) => {
 
   const removeImage = (index) => {
     setImages(images.filter((_, i) => i !== index));
+  };
+
+  const handleMapPress = (event) => {
+    const { coordinate } = event.nativeEvent;
+    setSelectedLocation(coordinate);
+    setMapRegion({
+      ...mapRegion,
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude,
+    });
+  };
+
+  const handleConfirmLocation = () => {
+    if (selectedLocation) {
+      setShowMapModal(false);
+      // Reverse geocoding could be added here to get address from coordinates
+      setFormData({ ...formData, location: `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}` });
+    }
   };
 
   return (
@@ -207,14 +280,15 @@ const AddPropertyScreen = ({ navigation }) => {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Location *</Text>
-            <TextInput
-              style={[styles.input, focusedInput === 'location' && styles.inputFocused]}
-              placeholder="Enter location"
-              value={formData.location}
-              onChangeText={(text) => setFormData({ ...formData, location: text })}
-              onFocus={() => setFocusedInput('location')}
-              onBlur={() => setFocusedInput(null)}
-            />
+            <TouchableOpacity
+              style={[styles.input, styles.locationInput, focusedInput === 'location' && styles.inputFocused]}
+              onPress={() => setShowMapModal(true)}
+            >
+              <Text style={formData.location ? styles.locationText : styles.placeholderText}>
+                {formData.location || 'Tap to select location on map'}
+              </Text>
+              <Ionicons name="location" size={20} color={selectedLocation ? colors.primary : colors.textSecondary} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
@@ -315,6 +389,56 @@ const AddPropertyScreen = ({ navigation }) => {
         </TouchableOpacity>
       </ScrollView>
       )}
+
+      {/* Map Modal */}
+      <Modal
+        visible={showMapModal}
+        animationType="slide"
+        onRequestClose={() => setShowMapModal(false)}
+      >
+        <View style={styles.mapModal}>
+          <View style={styles.mapHeader}>
+            <TouchableOpacity style={styles.mapBackButton} onPress={() => setShowMapModal(false)}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.mapTitle}>Select Location</Text>
+            <TouchableOpacity
+              style={[styles.confirmButton, !selectedLocation && styles.confirmButtonDisabled]}
+              onPress={handleConfirmLocation}
+              disabled={!selectedLocation}
+            >
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+          <MapView
+            style={styles.map}
+            region={mapRegion}
+            onPress={handleMapPress}
+            showsUserLocation
+            showsMyLocationButton={false}
+          >
+            {selectedLocation && (
+              <Marker
+                coordinate={selectedLocation}
+                draggable
+                onDragEnd={(e) => handleMapPress(e)}
+              />
+            )}
+          </MapView>
+          {loadingLocation && (
+            <View style={styles.locationLoadingOverlay}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.locationLoadingText}>Finding your location...</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.myLocationButton} onPress={getCurrentLocation}>
+            <Ionicons name="locate" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <View style={styles.mapInstructions}>
+            <Text style={styles.mapInstructionsText}>Tap on the map to select property location</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -462,6 +586,119 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 16,
     fontWeight: '700',
+  },
+  locationInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  locationText: {
+    fontSize: 15,
+    color: colors.text,
+  },
+  placeholderText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  mapModal: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  mapBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  confirmButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  confirmButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  confirmButtonText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  map: {
+    flex: 1,
+  },
+  mapInstructions: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  mapInstructionsText: {
+    fontSize: 14,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  locationLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  locationLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.surface,
+  },
+  myLocationButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });
 

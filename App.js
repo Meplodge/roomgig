@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppDataProvider } from './src/context/AppDataContext';
+import { MessagesProvider } from './src/context/MessagesContext';
 import SplashScreen from './src/screens/SplashScreen';
 
 export default function App() {
@@ -18,14 +19,16 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <AppDataProvider>
-          {isSplashVisible ? (
-            <SplashScreen onFinish={handleSplashFinish} />
-          ) : (
-            <>
-              <AppNavigator />
-              <StatusBar style="auto" />
-            </>
-          )}
+          <MessagesProvider>
+            {isSplashVisible ? (
+              <SplashScreen onFinish={handleSplashFinish} />
+            ) : (
+              <>
+                <AppNavigator />
+                <StatusBar style="auto" />
+              </>
+            )}
+          </MessagesProvider>
         </AppDataProvider>
       </AuthProvider>
     </SafeAreaProvider>

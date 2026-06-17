@@ -234,13 +234,22 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
           <Text style={styles.priceLabel}>Price per month</Text>
           <Text style={styles.price}>${property.price.toLocaleString()}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.bookButton}
-          onPress={() => navigation.navigate('Booking', { property })}
-        >
-          <Text style={styles.bookButtonText}>Book Now</Text>
-          <Ionicons name="arrow-forward" size={18} color={colors.surface} />
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.directionsButton}
+            onPress={() => navigation.navigate('MapScreen', { property })}
+          >
+            <Ionicons name="navigate" size={18} color={colors.text} />
+            <Text style={styles.directionsButtonText}>Directions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bookButton}
+            onPress={() => navigation.navigate('Booking', { property })}
+          >
+            <Text style={styles.bookButtonText}>Book Now</Text>
+            <Ionicons name="arrow-forward" size={18} color={colors.surface} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Review Modal */}
@@ -572,6 +581,26 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  directionsButtonText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   priceLabel: {
     fontSize: 12,
