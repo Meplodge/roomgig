@@ -40,7 +40,7 @@ const Stepper = ({ label, value, onDecrement, onIncrement, min }) => (
 );
 
 const BookingScreen = ({ route, navigation }) => {
-  const { property } = route.params;
+  const { property, withFriends, friends } = route.params || {};
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -54,6 +54,15 @@ const BookingScreen = ({ route, navigation }) => {
   const [cardCvv, setCardCvv] = useState('');
   const [cardName, setCardName] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [selectedFriends, setSelectedFriends] = useState(friends || []);
+  
+  const mockFriends = [
+    { id: '1', name: 'Alice Johnson', avatar: 'https://randomuser.me/api/portraits/women/1.jpg' },
+    { id: '2', name: 'Bob Smith', avatar: 'https://randomuser.me/api/portraits/men/2.jpg' },
+    { id: '3', name: 'Carol Williams', avatar: 'https://randomuser.me/api/portraits/women/3.jpg' },
+    { id: '4', name: 'David Brown', avatar: 'https://randomuser.me/api/portraits/men/4.jpg' },
+    { id: '5', name: 'Emma Davis', avatar: 'https://randomuser.me/api/portraits/women/5.jpg' },
+  ];
 
   const calendarCells = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1).getDay();
@@ -136,6 +145,10 @@ const BookingScreen = ({ route, navigation }) => {
       return cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
     }
     return cleaned;
+  };
+
+  const handleBookWithFriends = () => {
+    navigation.navigate('BookWithFriends', { property });
   };
 
   return (
@@ -233,6 +246,40 @@ const BookingScreen = ({ route, navigation }) => {
           />
         </View>
 
+        {/* Friends Section */}
+        {withFriends && friends && friends.length > 0 && (
+          <View style={styles.sectionCard}>
+            <View style={styles.friendsHeader}>
+              <Text style={styles.sectionTitle}>Booking with Friends</Text>
+              <TouchableOpacity 
+                style={styles.manageFriendsButton}
+                onPress={() => navigation.navigate('BookWithFriends', { property, withFriends: true, friends: selectedFriends })}
+              >
+                <Text style={styles.manageFriendsText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.friendsScroll}>
+              {friends.map((friendId) => {
+                const mockFriends = [
+                  { id: '1', name: 'Alice Johnson', avatar: 'https://randomuser.me/api/portraits/women/1.jpg' },
+                  { id: '2', name: 'Bob Smith', avatar: 'https://randomuser.me/api/portraits/men/2.jpg' },
+                  { id: '3', name: 'Carol Williams', avatar: 'https://randomuser.me/api/portraits/women/3.jpg' },
+                  { id: '4', name: 'David Brown', avatar: 'https://randomuser.me/api/portraits/men/4.jpg' },
+                  { id: '5', name: 'Emma Davis', avatar: 'https://randomuser.me/api/portraits/women/5.jpg' },
+                ];
+                const friend = mockFriends.find(f => f.id === friendId);
+                if (!friend) return null;
+                return (
+                  <View key={friend.id} style={styles.friendChip}>
+                    <Image source={{ uri: friend.avatar }} style={styles.friendChipAvatar} />
+                    <Text style={styles.friendChipName}>{friend.name}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Price summary */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Price Summary</Text>
@@ -260,15 +307,24 @@ const BookingScreen = ({ route, navigation }) => {
           <Text style={styles.bottomDate}>{formattedDate}</Text>
           <Text style={styles.bottomTotal}>${total.toLocaleString()}</Text>
         </View>
-        <TouchableOpacity
-          style={[styles.confirmButton, !selectedDate && styles.confirmDisabled]}
-          onPress={handleConfirm}
-          disabled={!selectedDate}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.confirmText}>Confirm Booking</Text>
-          <Ionicons name="arrow-forward" size={18} color={colors.surface} />
-        </TouchableOpacity>
+        <View style={styles.bottomButtons}>
+          <TouchableOpacity
+            style={styles.friendsButton}
+            onPress={handleBookWithFriends}
+          >
+            <Ionicons name="people" size={18} color={colors.surface} />
+            <Text style={styles.friendsButtonText}>With Friends</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.confirmButton, !selectedDate && styles.confirmDisabled]}
+            onPress={handleConfirm}
+            disabled={!selectedDate}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.confirmText}>Confirm</Text>
+            <Ionicons name="arrow-forward" size={18} color={colors.surface} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Payment Modal */}
@@ -535,6 +591,48 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 14 },
+  friendsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  manageFriendsButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 12,
+  },
+  manageFriendsText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  friendsScroll: {
+    flexDirection: 'row',
+  },
+  friendChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  friendChipAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  friendChipName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -556,11 +654,29 @@ const styles = StyleSheet.create({
   },
   bottomDate: { fontSize: 12, color: colors.textSecondary },
   bottomTotal: { fontSize: 22, fontWeight: '700', color: colors.primary },
+  bottomButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  friendsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    borderRadius: 28,
+  },
+  friendsButtonText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
   confirmButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 15,
     borderRadius: 28,
   },
@@ -591,6 +707,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    paddingHorizontal: 24,
+    marginBottom: 20,
   },
   modalBody: {
     paddingHorizontal: 24,

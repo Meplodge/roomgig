@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Modal,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,19 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
     { id: '1', name: 'John Doe', rating: 5.0, text: 'Amazing property! The host was very responsive and the place was exactly as described.' },
     { id: '2', name: 'Jane Smith', rating: 4.5, text: 'Great location and beautiful views. Would definitely recommend!' },
   ]);
+
+  const handleShare = async () => {
+    try {
+      const shareMessage = `Check out this amazing property: ${property.name}\n\n📍 ${property.location}\n💰 $${property.price.toLocaleString()}/month\n\n${property.description}\n\nView on Estatery!`;
+      
+      await Share.share({
+        message: shareMessage,
+        url: property.image,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Unable to share property');
+    }
+  };
 
   const handleSubmitReview = () => {
     if (reviewRating === 0) {
@@ -82,9 +96,14 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
             <TouchableOpacity style={styles.circleButton} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.circleButton}>
-              <Ionicons name="camera-outline" size={22} color={colors.text} />
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity style={styles.circleButton} onPress={handleShare}>
+                <Ionicons name="share-social-outline" size={22} color={colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.circleButton}>
+                <Ionicons name="camera-outline" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.imageIndicators}>
             <View style={styles.indicator}>
@@ -309,6 +328,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   circleButton: {
     width: 42,
@@ -584,23 +607,23 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 6,
   },
   directionsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 28,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
   },
   directionsButtonText: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '600',
-    marginLeft: 6,
+    marginLeft: 4,
   },
   priceLabel: {
     fontSize: 12,
@@ -615,9 +638,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 28,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: 20,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -626,9 +649,9 @@ const styles = StyleSheet.create({
   },
   bookButtonText: {
     color: colors.surface,
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
-    marginRight: 8,
+    marginRight: 4,
   },
   reviewHeaderSection: {
     flexDirection: 'row',

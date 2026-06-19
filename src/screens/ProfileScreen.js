@@ -19,7 +19,7 @@ const menuSections = [
     items: [
       { icon: 'person-outline', label: 'Edit Profile', route: 'EditProfile' },
       { icon: 'card-outline', label: 'Payment Methods', route: 'PaymentMethods' },
-      { icon: 'home-outline', label: 'My Listings', route: 'AddProperty' },
+      { icon: 'home-outline', label: 'My Listings', route: 'MyRoommateListings' },
       { icon: 'time-outline', label: 'Booking History', route: 'BookingHistory' },
     ],
   },

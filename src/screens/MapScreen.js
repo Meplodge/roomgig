@@ -110,7 +110,32 @@ const MapScreen = ({ navigation, route }) => {
         return;
       }
 
-      const currentLocation = await Location.getCurrentPositionAsync({});
+      // Try to get last known position first (much faster)
+      try {
+        const lastKnownPosition = await Location.getLastKnownPositionAsync();
+        if (lastKnownPosition) {
+          const { latitude, longitude } = lastKnownPosition.coords;
+          setUserLocation({ latitude, longitude });
+          mapRef.current?.animateToRegion(
+            {
+              latitude,
+              longitude,
+              latitudeDelta: 0.04,
+              longitudeDelta: 0.04,
+            },
+            400
+          );
+          setLocating(false);
+          return;
+        }
+      } catch (error) {
+        console.log('No last known position, getting current location');
+      }
+
+      // Use low accuracy for much faster location detection
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Low,
+      });
       const { latitude, longitude } = currentLocation.coords;
       setUserLocation({ latitude, longitude });
 
@@ -388,7 +413,7 @@ const MapScreen = ({ navigation, route }) => {
         <View style={styles.loadingBackdrop}>
           <View style={styles.loadingCard}>
             <Animated.View style={{ transform: [{ rotate: spin }] }}>
-              <Ionicons name="locate" size={40} color={colors.primary} />
+              <Ionicons name="location" size={40} color={colors.primary} />
             </Animated.View>
             <Text style={styles.loadingText}>Locating you...</Text>
           </View>

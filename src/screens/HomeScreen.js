@@ -133,10 +133,15 @@ const HomeScreen = ({ navigation }) => {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications-outline" size={22} color={colors.text} />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Saved')}>
+              <Ionicons name="heart-outline" size={22} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Notifications')}>
+              <Ionicons name="notifications-outline" size={22} color={colors.text} />
+              <View style={styles.notificationBadge} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -160,6 +165,10 @@ const HomeScreen = ({ navigation }) => {
               />
             ))}
           </ScrollView>
+          <TouchableOpacity style={styles.viewAllButton} onPress={() => navigation.navigate('ViewAll')}>
+            <Text style={styles.viewAllButtonText}>View All</Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Featured Listings */}
@@ -197,7 +206,7 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top Property</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AllProperties')}>
+            <TouchableOpacity onPress={() => navigation.navigate('ViewAll')}>
               <Text style={styles.viewAll}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -288,7 +297,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginHorizontal: 3,
   },
-  notificationButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
     position: 'relative',
     width: 44,
     height: 44,
@@ -314,6 +327,23 @@ const styles = StyleSheet.create({
   filterContainer: {
     paddingHorizontal: 20,
     marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 20,
+    marginLeft: 8,
+  },
+  viewAllButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    marginRight: 4,
   },
   section: {
     paddingHorizontal: 20,

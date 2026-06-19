@@ -60,7 +60,7 @@ const SavedScreen = ({ navigation }) => {
         </ScrollView>
       )}
 
-      <BottomNavBar activeTab="saved" navigation={navigation} />
+      <BottomNavBar activeTab="roommate" navigation={navigation} />
     </SafeAreaView>
   );
 };

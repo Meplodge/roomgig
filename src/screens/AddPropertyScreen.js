@@ -123,7 +123,7 @@ const AddPropertyScreen = ({ navigation }) => {
     }
 
     if (!selectedLocation) {
-      Alert.alert('Error', 'Please select a location on the map');
+      Alert.alert('Error', 'Please pin the location on the map');
       return;
     }
 
@@ -188,8 +188,7 @@ const AddPropertyScreen = ({ navigation }) => {
   const handleConfirmLocation = () => {
     if (selectedLocation) {
       setShowMapModal(false);
-      // Reverse geocoding could be added here to get address from coordinates
-      setFormData({ ...formData, location: `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}` });
+      // Don't overwrite the location text field - keep it separate from coordinates
     }
   };
 
@@ -279,15 +278,27 @@ const AddPropertyScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location *</Text>
+            <Text style={styles.label}>Location Name/Address *</Text>
+            <TextInput
+              style={[styles.input, focusedInput === 'location' && styles.inputFocused]}
+              placeholder="Enter location name or address"
+              value={formData.location}
+              onChangeText={(text) => setFormData({ ...formData, location: text })}
+              onFocus={() => setFocusedInput('location')}
+              onBlur={() => setFocusedInput(null)}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Pin Location on Map *</Text>
             <TouchableOpacity
-              style={[styles.input, styles.locationInput, focusedInput === 'location' && styles.inputFocused]}
+              style={[styles.input, styles.mapInput, focusedInput === 'mapLocation' && styles.inputFocused]}
               onPress={() => setShowMapModal(true)}
             >
-              <Text style={formData.location ? styles.locationText : styles.placeholderText}>
-                {formData.location || 'Tap to select location on map'}
+              <Text style={selectedLocation ? styles.mapLocationText : styles.placeholderText}>
+                {selectedLocation ? `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}` : 'Tap to pin location on map'}
               </Text>
-              <Ionicons name="location" size={20} color={selectedLocation ? colors.primary : colors.textSecondary} />
+              <Ionicons name="map" size={20} color={selectedLocation ? colors.primary : colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -593,6 +604,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   locationText: {
+    fontSize: 15,
+    color: colors.text,
+  },
+  mapInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mapLocationText: {
     fontSize: 15,
     color: colors.text,
   },

@@ -24,6 +24,15 @@ import PrivacySecurityScreen from '../screens/PrivacySecurityScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import ViewAllScreen from '../screens/ViewAllScreen';
+import BookWithFriendsScreen from '../screens/BookWithFriendsScreen';
+import RoommateFinderScreen from '../screens/RoommateFinderScreen';
+import PostRoommateListingScreen from '../screens/PostRoommateListingScreen';
+import RoommateDetailsScreen from '../screens/RoommateDetailsScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
+import ViewAllRoommatesScreen from '../screens/ViewAllRoommatesScreen';
+import MyRoommateListingsScreen from '../screens/MyRoommateListingsScreen';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -63,6 +72,15 @@ const AppNavigator = () => {
             <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
             <Stack.Screen name="ChatList" component={ChatListScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="ViewAll" component={ViewAllScreen} />
+            <Stack.Screen name="BookWithFriends" component={BookWithFriendsScreen} />
+            <Stack.Screen name="RoommateFinder" component={RoommateFinderScreen} />
+            <Stack.Screen name="RoommateDetails" component={RoommateDetailsScreen} />
+            <Stack.Screen name="PostRoommateListing" component={PostRoommateListingScreen} />
+            <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+            <Stack.Screen name="ViewAllRoommates" component={ViewAllRoommatesScreen} />
+            <Stack.Screen name="MyRoommateListings" component={MyRoommateListingsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />

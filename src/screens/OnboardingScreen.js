@@ -6,11 +6,13 @@ import {
   ImageBackground,
   TouchableOpacity,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
+import * as Location from 'expo-location';
 
 const slides = [
   {
@@ -19,6 +21,7 @@ const slides = [
     subtitle: 'Browse thousands of properties with advanced filters to find exactly what you\'re looking for.',
     icon: 'home',
     image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=900',
+    type: 'tutorial',
   },
   {
     id: 2,
@@ -26,6 +29,7 @@ const slides = [
     subtitle: 'Experience properties from anywhere with immersive 3D virtual tours and high-quality photos.',
     icon: 'camera',
     image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=900',
+    type: 'tutorial',
   },
   {
     id: 3,
@@ -33,6 +37,7 @@ const slides = [
     subtitle: 'Use AI-powered search to discover properties that match your preferences perfectly.',
     icon: 'search',
     image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=900',
+    type: 'tutorial',
   },
   {
     id: 4,
@@ -40,6 +45,23 @@ const slides = [
     subtitle: 'Schedule viewings and book properties seamlessly with our secure payment system.',
     icon: 'calendar',
     image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=900',
+    type: 'tutorial',
+  },
+  {
+    id: 5,
+    title: 'Set Your Preferences',
+    subtitle: 'Tell us what you\'re looking for so we can show you the best properties.',
+    icon: 'options',
+    image: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=900',
+    type: 'preferences',
+  },
+  {
+    id: 6,
+    title: 'Enable Location',
+    subtitle: 'Allow us to show properties near you and provide personalized recommendations.',
+    icon: 'location',
+    image: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=900',
+    type: 'location',
   },
 ];
 
@@ -48,6 +70,13 @@ const OnboardingScreen = ({ navigation }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const [preferences, setPreferences] = useState({
+    propertyType: 'Any',
+    priceRange: 'Any',
+    bedrooms: 'Any',
+  });
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [requestingLocation, setRequestingLocation] = useState(false);
 
   React.useEffect(() => {
     animateIn();
@@ -90,6 +119,24 @@ const OnboardingScreen = ({ navigation }) => {
     navigation.navigate('Login');
   };
 
+  const handleRequestLocation = async () => {
+    setRequestingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setLocationEnabled(true);
+        setTimeout(() => handleNext(), 500);
+      } else {
+        setLocationEnabled(false);
+      }
+    } catch (error) {
+      console.error('Location permission error:', error);
+      setLocationEnabled(false);
+    } finally {
+      setRequestingLocation(false);
+    }
+  };
+
   const slide = slides[currentSlide];
 
   return (
@@ -116,41 +163,228 @@ const OnboardingScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.slideContent}>
-            <Animated.View
-              style={[
-                styles.iconContainer,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                },
-              ]}
-            >
-              <Ionicons name={slide.icon} size={100} color={colors.surface} />
-            </Animated.View>
+            {slide.type === 'tutorial' && (
+              <>
+                <Animated.View
+                  style={[
+                    styles.iconContainer,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  <Ionicons name={slide.icon} size={100} color={colors.surface} />
+                </Animated.View>
 
-            <Animated.Text
-              style={[
-                styles.title,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                },
-              ]}
-            >
-              {slide.title}
-            </Animated.Text>
+                <Animated.Text
+                  style={[
+                    styles.title,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  {slide.title}
+                </Animated.Text>
 
-            <Animated.Text
-              style={[
-                styles.subtitle,
-                {
+                <Animated.Text
+                  style={[
+                    styles.subtitle,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  {slide.subtitle}
+                </Animated.Text>
+              </>
+            )}
+
+            {slide.type === 'preferences' && (
+              <Animated.View
+                style={[
+                  styles.preferencesContainer,
+                  {
                   opacity: fadeAnim,
                   transform: [{ translateY: slideAnim }],
                 },
-              ]}
-            >
-              {slide.subtitle}
-            </Animated.Text>
+                ]}
+              >
+                <Animated.Text
+                  style={[
+                    styles.title,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  {slide.title}
+                </Animated.Text>
+
+                <Animated.Text
+                  style={[
+                    styles.subtitle,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  {slide.subtitle}
+                </Animated.Text>
+
+                <View style={styles.preferenceSection}>
+                  <Text style={styles.preferenceLabel}>Property Type</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.preferenceScroll}>
+                    {['Any', 'Apartment', 'House', 'Villa', 'Studio'].map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[
+                          styles.preferenceChip,
+                          preferences.propertyType === type && styles.preferenceChipActive,
+                        ]}
+                        onPress={() => setPreferences({ ...preferences, propertyType: type })}
+                      >
+                        <Text style={[
+                          styles.preferenceChipText,
+                          preferences.propertyType === type && styles.preferenceChipTextActive,
+                        ]}>
+                          {type}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.preferenceSection}>
+                  <Text style={styles.preferenceLabel}>Price Range</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.preferenceScroll}>
+                    {['Any', '$500-$1k', '$1k-$2k', '$2k-$5k', '$5k+'].map((range) => (
+                      <TouchableOpacity
+                        key={range}
+                        style={[
+                          styles.preferenceChip,
+                          preferences.priceRange === range && styles.preferenceChipActive,
+                        ]}
+                        onPress={() => setPreferences({ ...preferences, priceRange: range })}
+                      >
+                        <Text style={[
+                          styles.preferenceChipText,
+                          preferences.priceRange === range && styles.preferenceChipTextActive,
+                        ]}>
+                          {range}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.preferenceSection}>
+                  <Text style={styles.preferenceLabel}>Bedrooms</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.preferenceScroll}>
+                    {['Any', '1', '2', '3', '4+'].map((bed) => (
+                      <TouchableOpacity
+                        key={bed}
+                        style={[
+                          styles.preferenceChip,
+                          preferences.bedrooms === bed && styles.preferenceChipActive,
+                        ]}
+                        onPress={() => setPreferences({ ...preferences, bedrooms: bed })}
+                      >
+                        <Text style={[
+                          styles.preferenceChipText,
+                          preferences.bedrooms === bed && styles.preferenceChipTextActive,
+                        ]}>
+                          {bed}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </Animated.View>
+            )}
+
+            {slide.type === 'location' && (
+              <Animated.View
+                style={[
+                  styles.locationContainer,
+                  {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+                ]}
+              >
+                <Animated.View
+                  style={[
+                    styles.iconContainer,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  <Ionicons name={slide.icon} size={100} color={colors.surface} />
+                </Animated.View>
+
+                <Animated.Text
+                  style={[
+                    styles.title,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  {slide.title}
+                </Animated.Text>
+
+                <Animated.Text
+                  style={[
+                    styles.subtitle,
+                    {
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }],
+                    },
+                  ]}
+                >
+                  {slide.subtitle}
+                </Animated.Text>
+
+                <TouchableOpacity
+                  style={[
+                    styles.locationButton,
+                    locationEnabled && styles.locationButtonEnabled,
+                  ]}
+                  onPress={handleRequestLocation}
+                  disabled={requestingLocation || locationEnabled}
+                >
+                  {requestingLocation ? (
+                    <Text style={styles.locationButtonText}>Requesting...</Text>
+                  ) : locationEnabled ? (
+                    <>
+                      <Ionicons name="checkmark-circle" size={20} color={colors.surface} />
+                      <Text style={styles.locationButtonText}>Location Enabled</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="location" size={20} color={colors.surface} />
+                      <Text style={styles.locationButtonText}>Enable Location</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.skipLocationButton}
+                  onPress={handleNext}
+                >
+                  <Text style={styles.skipLocationText}>Skip for now</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
           </View>
 
           <View style={styles.bottomContent}>
@@ -264,6 +498,77 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  preferencesContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  preferenceSection: {
+    marginTop: 24,
+  },
+  preferenceLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.surface,
+    marginBottom: 12,
+  },
+  preferenceScroll: {
+    flexDirection: 'row',
+  },
+  preferenceChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  preferenceChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  preferenceChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.surface,
+  },
+  preferenceChipTextActive: {
+    color: colors.surface,
+  },
+  locationContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 28,
+    marginTop: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    gap: 8,
+  },
+  locationButtonEnabled: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  locationButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.surface,
+  },
+  skipLocationButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  skipLocationText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
   },
   bottomContent: {
     marginBottom: 12,

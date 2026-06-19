@@ -6,7 +6,7 @@ import { colors } from '../constants/colors';
 const TAB_ROUTES = {
   home: 'Home',
   location: 'MapScreen',
-  saved: 'Saved',
+  roommate: 'RoommateFinder',
   messages: 'ChatList',
   profile: 'Profile',
 };
@@ -15,7 +15,7 @@ const BottomNavBar = ({ activeTab, onTabPress, navigation }) => {
   const tabs = [
     { id: 'home', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
     { id: 'location', label: 'Explore', icon: 'location-outline', activeIcon: 'location' },
-    { id: 'saved', label: 'Saved', icon: 'heart-outline', activeIcon: 'heart' },
+    { id: 'roommate', label: 'Roommate', icon: 'people-outline', activeIcon: 'people' },
     { id: 'messages', label: 'Messages', icon: 'chatbubble-outline', activeIcon: 'chatbubble' },
     { id: 'profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person' },
   ];

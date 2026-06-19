@@ -18,7 +18,15 @@ import { colors } from '../constants/colors';
 import { useMessages } from '../context/MessagesContext';
 
 const ChatScreen = ({ route, navigation }) => {
-  const { chat } = route.params;
+  // Handle both navigation from ChatList (chat object) and NotificationsScreen (individual params)
+  const chat = route.params.chat || {
+    id: route.params.chatId,
+    name: route.params.userName || 'User',
+    avatar: route.params.userImage || 'https://randomuser.me/api/portraits/men/32.jpg',
+    property: 'Property Inquiry',
+    phone: null,
+  };
+  
   const { getMessages, sendMessage: sendMessageToContext, markAsRead } = useMessages();
   const [message, setMessage] = useState('');
   const scrollViewRef = useRef(null);
@@ -72,6 +80,23 @@ const ChatScreen = ({ route, navigation }) => {
     );
   };
 
+  const handleVideoCall = () => {
+    Alert.alert(
+      'Video Call',
+      `Start a free video call with ${chat.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call',
+          onPress: () => {
+            // In a real app, this would integrate with a free video call service like WebRTC, Agora, or Jitsi
+            Alert.alert('Video Call', 'Video call feature coming soon! This will use a free video calling service.');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -86,9 +111,14 @@ const ChatScreen = ({ route, navigation }) => {
             <Text style={styles.headerProperty}>{chat.property}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.iconButton} onPress={handleCall}>
-          <Ionicons name="call-outline" size={22} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.iconButton} onPress={handleVideoCall}>
+            <Ionicons name="videocam-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={handleCall}>
+            <Ionicons name="call-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Messages */}
@@ -204,6 +234,10 @@ const styles = StyleSheet.create({
   headerProperty: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   iconButton: {
     width: 44,
