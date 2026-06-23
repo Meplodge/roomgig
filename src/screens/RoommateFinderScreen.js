@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,90 +7,44 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../constants/colors';
 import FilterButton from '../components/FilterButton';
+import PropertyCardSkeleton from '../components/PropertyCardSkeleton';
+import BottomNavBar from '../components/BottomNavBar';
+import { getRoommateListings } from '../services/supabaseApi';
 
 const roommateTypes = ['All', 'Apartment', 'House', 'Room'];
-
-const mockRoommateListings = [
-  {
-    id: '1',
-    type: 'Apartment',
-    title: 'Looking for roommate for 2BR apartment',
-    location: 'Downtown, Seattle',
-    price: 1200,
-    available: 'Available now',
-    postedBy: {
-      name: 'Sarah Johnson',
-      avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
-      age: 28,
-      occupation: 'Software Engineer',
-    },
-    preferences: ['No smoking', 'Pet friendly', 'Quiet hours 10pm-7am'],
-    images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600'],
-    amenities: ['WiFi', 'Laundry', 'Parking', 'Gym'],
-  },
-  {
-    id: '2',
-    type: 'House',
-    title: 'Room available in shared house',
-    location: 'Capitol Hill, Seattle',
-    price: 900,
-    available: 'Available July 1st',
-    postedBy: {
-      name: 'Mike Chen',
-      avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
-      age: 31,
-      occupation: 'Designer',
-    },
-    preferences: ['Clean common areas', 'Vegetarian friendly', 'Weekend guests OK'],
-    images: ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600'],
-    amenities: ['Backyard', 'BBQ', 'WiFi', 'Parking'],
-  },
-  {
-    id: '3',
-    type: 'Room',
-    title: 'Private room in modern apartment',
-    location: 'Belltown, Seattle',
-    price: 1500,
-    available: 'Available immediately',
-    postedBy: {
-      name: 'Emily Davis',
-      avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-      age: 26,
-      occupation: 'Marketing Manager',
-    },
-    preferences: ['Female preferred', 'Professional', 'No pets'],
-    images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'],
-    amenities: ['Pool', 'Gym', 'Concierge', 'WiFi'],
-  },
-  {
-    id: '4',
-    type: 'Apartment',
-    title: 'Co-living space with private room',
-    location: 'Fremont, Seattle',
-    price: 1100,
-    available: 'Available August 1st',
-    postedBy: {
-      name: 'Alex Thompson',
-      avatar: 'https://randomuser.me/api/portraits/men/33.jpg',
-      age: 29,
-      occupation: 'Teacher',
-    },
-    preferences: ['LGBTQ+ friendly', 'Social atmosphere', 'Shared meals'],
-    images: ['https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600'],
-    amenities: ['Shared kitchen', 'Workspace', 'Garden', 'WiFi'],
-  },
-];
 
 const RoommateFinderScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredListings = mockRoommateListings.filter(listing => {
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchListings();
+    }, [])
+  );
+
+  const fetchListings = async () => {
+    try {
+      setLoading(true);
+      const data = await getRoommateListings();
+      setListings(data);
+    } catch (error) {
+      console.error('Error fetching roommate listings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredListings = listings.filter(listing => {
     const matchesType = selectedType === 'All' || listing.type === selectedType;
     const matchesSearch = searchQuery === '' || 
       listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -106,7 +60,10 @@ const RoommateFinderScreen = ({ navigation }) => {
       onPress={() => navigation.navigate('RoommateDetails', { listing })}
       activeOpacity={0.8}
     >
-      <Image source={{ uri: listing.images[0] }} style={styles.listingImage} />
+      <Image
+        source={{ uri: listing.images?.[0] || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600' }}
+        style={styles.listingImage}
+      />
       <View style={styles.listingContent}>
         <View style={styles.listingHeader}>
           <View style={styles.typeBadge}>
@@ -195,45 +152,73 @@ const RoommateFinderScreen = ({ navigation }) => {
           style={styles.listingsContainer}
           contentContainerStyle={styles.listingsContent}
         >
-          {/* Featured Roommates */}
-          <View style={styles.featuredSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Featured Roommates</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('ViewAllRoommates')}>
-                <Text style={styles.viewAll}>View All</Text>
+          {loading ? (
+            <>
+              <PropertyCardSkeleton />
+              <PropertyCardSkeleton />
+              <PropertyCardSkeleton />
+            </>
+          ) : filteredListings.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyEmoji}>🏠</Text>
+              <Text style={styles.emptyTitle}>No Listings Found</Text>
+              <Text style={styles.emptyMessage}>
+                {searchQuery || selectedType !== 'All'
+                  ? 'Try adjusting your search or filters.'
+                  : 'There are no roommate listings yet. Be the first to post one!'}
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={() => navigation.navigate('PostRoommateListing')}
+              >
+                <Ionicons name="add" size={18} color={colors.surface} />
+                <Text style={styles.emptyButtonText}>Post a Listing</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {mockRoommateListings.map((listing) => (
-                <TouchableOpacity
-                  key={listing.id}
-                  style={styles.featuredCard}
-                  onPress={() => navigation.navigate('RoommateDetails', { listing })}
-                  activeOpacity={0.8}
-                >
-                  <Image source={{ uri: listing.images[0] }} style={styles.featuredImage} />
-                  <View style={styles.featuredBadge}>
-                    <Text style={styles.featuredBadgeText}>{listing.type}</Text>
-                  </View>
-                  <View style={styles.featuredPrice}>
-                    <Text style={styles.featuredPriceText}>${listing.price}/mo</Text>
-                  </View>
-                  <Text style={styles.featuredTitle} numberOfLines={1}>{listing.title}</Text>
-                  <View style={styles.featuredLocation}>
-                    <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-                    <Text style={styles.featuredLocationText} numberOfLines={1}>{listing.location}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          ) : (
+            <>
+              {/* Featured Roommates */}
+              <View style={styles.featuredSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Featured Roommates</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('ViewAllRoommates')}>
+                    <Text style={styles.viewAll}>View All</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+                  {listings.slice(0, 5).map((listing) => (
+                    <TouchableOpacity
+                      key={listing.id}
+                      style={styles.featuredCard}
+                      onPress={() => navigation.navigate('RoommateDetails', { listing })}
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={{ uri: listing.images?.[0] || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600' }}
+                        style={styles.featuredImage}
+                      />
+                      <View style={styles.featuredBadge}>
+                        <Text style={styles.featuredBadgeText}>{listing.type}</Text>
+                      </View>
+                      <Text style={styles.featuredTitle} numberOfLines={1}>{listing.title}</Text>
+                      <View style={styles.featuredLocation}>
+                        <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+                        <Text style={styles.featuredLocationText} numberOfLines={1}>{listing.location}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-          <Text style={styles.sectionTitle}>
-            {filteredListings.length} {filteredListings.length === 1 ? 'listing' : 'listings'} found
-          </Text>
-          {filteredListings.map(renderListing)}
+              <Text style={styles.sectionTitle}>
+                {filteredListings.length} {filteredListings.length === 1 ? 'listing' : 'listings'} found
+              </Text>
+              {filteredListings.map(renderListing)}
+            </>
+          )}
         </ScrollView>
       </View>
+      <BottomNavBar activeTab="roommate" navigation={navigation} />
     </SafeAreaView>
   );
 };
@@ -286,7 +271,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 6,
     borderRadius: 20,
     gap: 12,
     shadowColor: colors.text,
@@ -311,7 +296,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   featuredSection: {
-    paddingHorizontal: 20,
     marginBottom: 20,
   },
   sectionHeader: {
@@ -319,6 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 20,
   },
   viewAll: {
     fontSize: 14,
@@ -394,6 +379,50 @@ const styles = StyleSheet.create({
   listingsContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 60,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+  },
+  emptyButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.surface,
   },
   sectionTitle: {
     fontSize: 15,

@@ -11,8 +11,8 @@ export const filterProperties = (properties, { filters, query } = {}) => {
       if (!matches) return false;
     }
 
-    // Type
-    if (f.type && f.type !== 'All' && p.type !== f.type) return false;
+    // Type (case-insensitive comparison)
+    if (f.type && f.type !== 'All' && p.type?.toLowerCase() !== f.type.toLowerCase()) return false;
 
     // Price range
     if (f.priceRange) {

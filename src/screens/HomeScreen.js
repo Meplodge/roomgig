@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { colors } from '../constants/colors';
 import { propertyTypes } from '../data/mockData';
 import PropertyCard from '../components/PropertyCard';
+import PropertyCardSkeleton from '../components/PropertyCardSkeleton';
 import FilterButton from '../components/FilterButton';
 import SearchBar from '../components/SearchBar';
 import BottomNavBar from '../components/BottomNavBar';
@@ -24,9 +25,11 @@ import EmptyState from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
 import { filterProperties, countActiveFilters } from '../utils/filterProperties';
+import { parseSearchQuery, getSearchSuggestions } from '../utils/aiSearch';
+import { sendNotification } from '../services/notificationService';
 
 const HomeScreen = ({ navigation }) => {
-  const { propertiesList } = useAppData();
+  const { propertiesList, loading } = useAppData();
   const { user } = useAuth();
   const firstName = (user?.name || 'there').split(' ')[0];
   const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
@@ -36,6 +39,8 @@ const HomeScreen = ({ navigation }) => {
   const [location, setLocation] = useState('California, USA');
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     getCurrentLocation();
@@ -86,9 +91,68 @@ const HomeScreen = ({ navigation }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     await getCurrentLocation();
+    
+    // Send a notification when location is refreshed
+    await sendNotification(
+      'Location Updated',
+      `Your location has been refreshed to ${location}`,
+      { type: 'location_update' }
+    );
+    
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
+  };
+
+  const handleSearchChange = async (text) => {
+    setSearchQuery(text);
+    
+    // Show AI suggestions when typing
+    if (text.length > 2) {
+      const suggestions = await getSearchSuggestions(text);
+      setAiSuggestions(suggestions);
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleAISearch = async (query) => {
+    try {
+      const criteria = await parseSearchQuery(query);
+      console.log('AI parsed criteria:', criteria);
+      
+      // Update filters based on AI parsing
+      const updatedFilters = { ...defaultFilters };
+      
+      if (criteria.bedrooms) {
+        updatedFilters.bedrooms = criteria.bedrooms;
+      }
+      if (criteria.bathrooms) {
+        updatedFilters.bathrooms = criteria.bathrooms;
+      }
+      if (criteria.minPrice) {
+        updatedFilters.priceRange = [criteria.minPrice, updatedFilters.priceRange[1]];
+      }
+      if (criteria.maxPrice) {
+        updatedFilters.priceRange = [updatedFilters.priceRange[0], criteria.maxPrice];
+      }
+      if (criteria.type) {
+        updatedFilters.type = criteria.type;
+      }
+      if (criteria.location) {
+        updatedFilters.location = criteria.location;
+      }
+      
+      setFilters(updatedFilters);
+      setSearchQuery(query);
+      setShowSuggestions(false);
+    } catch (error) {
+      console.log('AI search failed:', error);
+      // Fallback to regular search
+      setSearchQuery(query);
+      setShowSuggestions(false);
+    }
   };
 
   return (
@@ -110,7 +174,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.headerLeft}>
             <View style={styles.avatarContainer}>
               <Image
-                source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }}
+                source={{ uri: user?.avatar || 'https://randomuser.me/api/portraits/men/32.jpg' }}
                 style={styles.avatar}
               />
               <LinearGradient
@@ -145,13 +209,29 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Search Bar */}
-        <SearchBar
-          placeholder="Search destination"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onFilterPress={() => setFilterVisible(true)}
-          filterCount={activeCount}
-        />
+        <View>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            onFilterPress={() => setFilterVisible(true)}
+            filterCount={activeCount}
+          />
+          {/* AI Suggestions */}
+          {showSuggestions && aiSuggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {aiSuggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionItem}
+                  onPress={() => handleAISearch(suggestion)}
+                >
+                  <Ionicons name="sparkles" size={16} color={colors.primary} />
+                  <Text style={styles.suggestionText}>{suggestion}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
 
         {/* Property Type Filters */}
         <View style={styles.filterContainer}>
@@ -180,7 +260,13 @@ const HomeScreen = ({ navigation }) => {
                 : 'Featured Listings'}
             </Text>
           </View>
-          {filteredProperties.length === 0 ? (
+          {loading ? (
+            <>
+              <PropertyCardSkeleton />
+              <PropertyCardSkeleton />
+              <PropertyCardSkeleton />
+            </>
+          ) : filteredProperties.length === 0 ? (
             <EmptyState
               icon="search-outline"
               title="No Properties Found"
@@ -456,6 +542,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '600',
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 56,
+    left: 20,
+    right: 80,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 100,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    marginLeft: 8,
   },
 });
 

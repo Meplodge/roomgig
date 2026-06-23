@@ -1,92 +1,176 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './AuthContext';
+import { getConversations, getMessages, sendMessage as sendMessageApi, deleteMessageFromDB } from '../services/supabaseApi';
 
 const MessagesContext = createContext(null);
 
 const CONVERSATIONS_KEY = '@realestate_conversations';
 const MESSAGES_KEY = '@realestate_messages';
+const LAST_SYNC_KEY = '@realestate_last_sync';
 
-const initialConversations = [
-  {
-    id: '1',
-    name: 'Christopher Estate',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    property: 'Suncrest Manor',
-    lastMessage: 'The property is still available for viewing.',
-    updatedAt: Date.now() - 2 * 60 * 1000,
-    unread: 2,
-    phone: '+15551234567',
-  },
-  {
-    id: '2',
-    name: 'Premium Homes',
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    property: 'Luxury 3BHK',
-    lastMessage: 'Would you like to schedule a tour?',
-    updatedAt: Date.now() - 60 * 60 * 1000,
-    unread: 0,
-    phone: '+15559876543',
-  },
-  {
-    id: '3',
-    name: 'Elite Properties',
-    avatar: 'https://randomuser.me/api/portraits/men/67.jpg',
-    property: 'Green Valley Villa',
-    lastMessage: 'Thanks for your interest! Let me know if you have any questions.',
-    updatedAt: Date.now() - 3 * 60 * 60 * 1000,
-    unread: 1,
-    phone: '+15555555555',
-  },
-];
-
-const initialMessages = {
-  '1': [
-    { id: '1-1', text: "Hi! I'm interested in your property.", sender: 'user', time: '10:30 AM' },
-    { id: '1-2', text: 'Hello! Thanks for your interest. The property is still available for viewing.', sender: 'other', time: '10:32 AM' },
-    { id: '1-3', text: 'Great! When can I schedule a tour?', sender: 'user', time: '10:35 AM' },
-    { id: '1-4', text: 'The property is still available for viewing.', sender: 'other', time: '10:38 AM' },
-  ],
-  '2': [
-    { id: '2-1', text: 'Hello, is the 3BHK still on the market?', sender: 'user', time: '09:10 AM' },
-    { id: '2-2', text: 'Yes it is! Would you like to schedule a tour?', sender: 'other', time: '09:15 AM' },
-  ],
-  '3': [
-    { id: '3-1', text: 'Hi, I have a few questions about the villa.', sender: 'user', time: 'Yesterday' },
-    { id: '3-2', text: 'Thanks for your interest! Let me know if you have any questions.', sender: 'other', time: 'Yesterday' },
-  ],
+const formatTime = (timestamp) => {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const AUTO_REPLIES = [
-  'Thanks for your message! I\'ll get back to you shortly.',
-  'Got it! Let me check and confirm.',
-  'Sure, that works for me.',
-  'Happy to help with any questions you have.',
-];
-
-const formatTime = () =>
-  new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
 export const MessagesProvider = ({ children }) => {
-  const [conversations, setConversations] = useState(initialConversations);
-  const [messages, setMessages] = useState(initialMessages);
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState({});
+  const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const pollingIntervalRef = useRef(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [conv, msgs] = await Promise.all([
-          AsyncStorage.getItem(CONVERSATIONS_KEY),
-          AsyncStorage.getItem(MESSAGES_KEY),
-        ]);
-        if (conv) setConversations(JSON.parse(conv));
-        if (msgs) setMessages(JSON.parse(msgs));
-      } catch (e) {
-        // ignore read errors
-      } finally {
-        setHydrated(true);
-      }
-    })();
+    loadConversations();
+    loadMessagesFromStorage();
+    setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+      startPolling();
+    } else {
+      stopPolling();
+    }
+    return () => stopPolling();
+  }, [user]);
+
+  const startPolling = () => {
+    stopPolling();
+    // Poll for new messages every 10 seconds
+    pollingIntervalRef.current = setInterval(() => {
+      fetchAndDeleteNewMessages();
+    }, 10000);
+  };
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
+  const loadMessagesFromStorage = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(MESSAGES_KEY);
+      if (stored) {
+        setMessages(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Error loading messages from storage:', e);
+    }
+  };
+
+  const loadConversations = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const data = await getConversations(user.id);
+      const formattedConversations = data.map(conv => ({
+        id: conv.id,
+        name: conv.profiles?.full_name || 'Unknown',
+        avatar: conv.profiles?.avatar_url,
+        property: conv.properties?.title,
+        lastMessage: conv.last_message,
+        updatedAt: new Date(conv.last_message_at || conv.created_at).getTime(),
+        unread: conv.unread_count || 0,
+        phone: conv.profiles?.phone,
+      }));
+      setConversations(formattedConversations);
+      await AsyncStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(formattedConversations));
+    } catch (e) {
+      console.error('Error loading conversations:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMessagesForConversation = async (conversationId) => {
+    // Load from local storage instead of database
+    try {
+      const stored = await AsyncStorage.getItem(MESSAGES_KEY);
+      if (stored) {
+        const allMessages = JSON.parse(stored);
+        const conversationMessages = allMessages[conversationId] || [];
+        setMessages(prev => ({
+          ...prev,
+          [conversationId]: conversationMessages,
+        }));
+      }
+    } catch (e) {
+      console.error('Error loading messages from storage:', e);
+    }
+  };
+
+  const fetchAndDeleteNewMessages = async () => {
+    if (!user) return;
+
+    try {
+      const lastSync = await AsyncStorage.getItem(LAST_SYNC_KEY);
+      const lastSyncTime = lastSync ? new Date(lastSync) : new Date(0);
+
+      // Fetch all conversations for the user
+      const convData = await getConversations(user.id);
+
+      for (const conv of convData) {
+        // Fetch messages from database for this conversation
+        const dbMessages = await getMessages(conv.id);
+
+        // Filter messages that are newer than last sync and are from other users
+        const newMessages = dbMessages.filter(
+          msg => new Date(msg.created_at) > lastSyncTime && msg.sender_id !== user.id
+        );
+
+        if (newMessages.length > 0) {
+          // Add new messages to local storage
+          const formattedMessages = newMessages.map(msg => ({
+            id: msg.id,
+            text: msg.content,
+            sender: 'other',
+            time: formatTime(msg.created_at),
+            dbMessageId: msg.id, // Store DB ID for deletion
+          }));
+
+          setMessages(prev => {
+            const existing = prev[conv.id] || [];
+            const updated = [...existing, ...formattedMessages];
+            const next = { ...prev, [conv.id]: updated };
+            AsyncStorage.setItem(MESSAGES_KEY, JSON.stringify(next));
+            return next;
+          });
+
+          // Delete messages from database after storing locally
+          for (const msg of newMessages) {
+            try {
+              await deleteMessageFromDB(msg.id);
+            } catch (e) {
+              console.error('Error deleting message from DB:', e);
+            }
+          }
+
+          // Update conversation with last message
+          const lastMsg = newMessages[newMessages.length - 1];
+          setConversations(prev => {
+            const updated = prev.map(c =>
+              c.id === conv.id
+                ? { ...c, lastMessage: lastMsg.content, updatedAt: Date.now(), unread: (c.unread || 0) + newMessages.length }
+                : c
+            ).sort((a, b) => b.updatedAt - a.updatedAt);
+            AsyncStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updated));
+            return updated;
+          });
+        }
+      }
+
+      // Update last sync time
+      await AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+    } catch (e) {
+      console.error('Error fetching new messages:', e);
+    }
+  };
 
   const persistConversations = async (next) => {
     setConversations(next);
@@ -106,7 +190,7 @@ export const MessagesProvider = ({ children }) => {
     }
   };
 
-  const getMessages = (conversationId) => messages[conversationId] || [];
+  const getMessagesForConversation = (conversationId) => messages[conversationId] || [];
 
   const getConversation = (conversationId) =>
     conversations.find((c) => c.id === conversationId);
@@ -124,49 +208,39 @@ export const MessagesProvider = ({ children }) => {
       .sort((a, b) => b.updatedAt - a.updatedAt);
   };
 
-  const sendMessage = (conversationId, text) => {
+  const sendMessage = async (conversationId, text) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || !user) return;
 
-    const userMessage = {
-      id: `${conversationId}-${Date.now()}`,
-      text: trimmed,
-      sender: 'user',
-      time: formatTime(),
-    };
-
-    const nextMessages = {
-      ...messages,
-      [conversationId]: [...getMessages(conversationId), userMessage],
-    };
-    persistMessages(nextMessages);
-    persistConversations(bumpConversation(conversationId, trimmed));
-
-    // Simulate reply from the other party
-    setTimeout(() => {
-      const reply = {
-        id: `${conversationId}-${Date.now() + 1}`,
-        text: AUTO_REPLIES[Math.floor(Math.random() * AUTO_REPLIES.length)],
-        sender: 'other',
-        time: formatTime(),
+    try {
+      // Save to local storage first
+      const userMessage = {
+        id: `${conversationId}-${Date.now()}`,
+        text: trimmed,
+        sender: 'user',
+        time: formatTime(new Date()),
       };
-      setMessages((prevMessages) => {
-        const updated = {
-          ...prevMessages,
-          [conversationId]: [...(prevMessages[conversationId] || []), reply],
-        };
-        AsyncStorage.setItem(MESSAGES_KEY, JSON.stringify(updated)).catch(() => {});
-        return updated;
-      });
-      setConversations((prevConvos) => {
-        const updated = bumpConversation(conversationId, reply.text, prevConvos);
-        AsyncStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updated)).catch(() => {});
-        return updated;
-      });
-    }, 1500);
+
+      const nextMessages = {
+        ...messages,
+        [conversationId]: [...getMessagesForConversation(conversationId), userMessage],
+      };
+      persistMessages(nextMessages);
+      persistConversations(bumpConversation(conversationId, trimmed));
+
+      // Then send to database for routing (will be deleted by receiver)
+      try {
+        await sendMessageApi(conversationId, user.id, trimmed);
+      } catch (e) {
+        console.error('Error sending message to DB (routing):', e.message, e);
+        // Message is already saved locally, so don't throw error
+      }
+    } catch (e) {
+      console.error('Error sending message:', e);
+    }
   };
 
-  const markAsRead = (conversationId) => {
+  const markAsRead = async (conversationId) => {
     const target = conversations.find((c) => c.id === conversationId);
     if (!target || !target.unread) return;
     const next = conversations.map((c) =>
@@ -179,12 +253,17 @@ export const MessagesProvider = ({ children }) => {
     <MessagesContext.Provider
       value={{
         conversations,
+        messages,
+        loading,
         hydrated,
         totalUnread,
-        getMessages,
+        getMessages: getMessagesForConversation,
+        loadMessages: loadMessagesForConversation,
         getConversation,
         sendMessage,
         markAsRead,
+        loadConversations,
+        fetchNewMessages: fetchAndDeleteNewMessages,
       }}
     >
       {children}

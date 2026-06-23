@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,93 +13,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import FilterButton from '../components/FilterButton';
-
-const mockRoommateListings = [
-  {
-    id: '1',
-    type: 'Apartment',
-    title: 'Looking for roommate for 2BR apartment',
-    location: 'Downtown, Seattle',
-    price: 1200,
-    available: 'Available now',
-    postedBy: {
-      name: 'Sarah Johnson',
-      avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
-      age: 28,
-      occupation: 'Software Engineer',
-    },
-    preferences: ['No smoking', 'Pet friendly', 'Quiet hours 10pm-7am'],
-    images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600'],
-    amenities: ['WiFi', 'Laundry', 'Parking', 'Gym'],
-  },
-  {
-    id: '2',
-    type: 'House',
-    title: 'Room available in shared house',
-    location: 'Capitol Hill, Seattle',
-    price: 900,
-    available: 'Available July 1st',
-    postedBy: {
-      name: 'Mike Chen',
-      avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
-      age: 31,
-      occupation: 'Designer',
-    },
-    preferences: ['Clean common areas', 'Vegetarian friendly', 'Weekend guests OK'],
-    images: ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600'],
-    amenities: ['Backyard', 'BBQ', 'WiFi', 'Parking'],
-  },
-  {
-    id: '3',
-    type: 'Room',
-    title: 'Private room in modern apartment',
-    location: 'Belltown, Seattle',
-    price: 1500,
-    available: 'Available immediately',
-    postedBy: {
-      name: 'Emily Davis',
-      avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-      age: 26,
-      occupation: 'Marketing Manager',
-    },
-    preferences: ['Female preferred', 'Professional', 'No pets'],
-    images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'],
-    amenities: ['Pool', 'Gym', 'Concierge', 'WiFi'],
-  },
-  {
-    id: '4',
-    type: 'Apartment',
-    title: 'Co-living space with private room',
-    location: 'Fremont, Seattle',
-    price: 1100,
-    available: 'Available August 1st',
-    postedBy: {
-      name: 'Alex Thompson',
-      avatar: 'https://randomuser.me/api/portraits/men/33.jpg',
-      age: 29,
-      occupation: 'Teacher',
-    },
-    preferences: ['LGBTQ+ friendly', 'Social atmosphere', 'Shared meals'],
-    images: ['https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600'],
-    amenities: ['Shared kitchen', 'Workspace', 'Garden', 'WiFi'],
-  },
-];
+import { getRoommateListings } from '../services/supabaseApi';
 
 const roommateTypes = ['All', 'Apartment', 'House', 'Room'];
 
 const ViewAllRoommatesScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchListings();
+  }, []);
+
+  const fetchListings = async () => {
+    try {
+      setLoading(true);
+      const data = await getRoommateListings();
+      setListings(data);
+    } catch (error) {
+      console.error('Error fetching roommate listings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredListings = selectedType === 'All' 
-    ? mockRoommateListings 
-    : mockRoommateListings.filter(listing => listing.type === selectedType);
+    ? listings 
+    : listings.filter(listing => listing.type === selectedType);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    await fetchListings();
+    setRefreshing(false);
   };
 
   const renderListing = ({ item }) => (
@@ -143,29 +90,35 @@ const ViewAllRoommatesScreen = ({ navigation }) => {
       </View>
 
       {/* Listings */}
-      <FlatList
-        data={filteredListings}
-        renderItem={renderListing}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyText}>No roommates found</Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredListings}
+          renderItem={renderListing}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={64} color={colors.textSecondary} />
+              <Text style={styles.emptyText}>No roommates found</Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -257,6 +210,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     marginTop: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
   },
 });
 

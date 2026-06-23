@@ -1,37 +1,92 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { properties } from '../data/mockData';
+import { useAuth } from './AuthContext';
+import { getProperties, getFavorites, toggleFavorite as toggleFavoriteApi, getBookings, createBooking, createProperty as createPropertyApi } from '../services/supabaseApi';
 
 const AppDataContext = createContext(null);
 
 const FAV_KEY = '@realestate_favorites';
 const BOOKINGS_KEY = '@realestate_bookings';
-const PROPERTIES_KEY = '@realestate_properties';
+
+const monthsBetween = (start, end) => {
+  if (!start || !end) return 1;
+  const s = new Date(start);
+  const e = new Date(end);
+  const months = Math.round((e - s) / (1000 * 60 * 60 * 24 * 30));
+  return Math.max(1, months);
+};
+
+const mapBooking = (b) => {
+  const images = b.properties?.property_images || [];
+  const primary = images.find((img) => img.is_primary) || images[0];
+  return {
+    reference: b.reference,
+    propertyName: b.properties?.title || 'Property',
+    propertyImage: primary?.image_url,
+    date: b.check_in_date,
+    months: monthsBetween(b.check_in_date, b.check_out_date),
+    guests: b.guests || 1,
+    total: Number(b.total_amount) || 0,
+  };
+};
 
 export const AppDataProvider = ({ children }) => {
+  const { user } = useAuth();
   const [favorites, setFavorites] = useState([]); // array of property ids
   const [bookings, setBookings] = useState([]); // array of booking objects
-  const [propertiesList, setPropertiesList] = useState(properties);
+  const [propertiesList, setPropertiesList] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [fav, bk, props] = await Promise.all([
-          AsyncStorage.getItem(FAV_KEY),
-          AsyncStorage.getItem(BOOKINGS_KEY),
-          AsyncStorage.getItem(PROPERTIES_KEY),
-        ]);
-        if (fav) setFavorites(JSON.parse(fav));
-        if (bk) setBookings(JSON.parse(bk));
-        if (props) setPropertiesList(JSON.parse(props));
-      } catch (e) {
-        // ignore read errors
-      } finally {
-        setHydrated(true);
-      }
-    })();
+    loadFavorites();
+    loadBookings();
+    setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadProperties();
+      loadFavorites();
+      loadBookings();
+    }
+  }, [user]);
+
+  const loadProperties = async () => {
+    try {
+      setLoading(true);
+      const data = await getProperties();
+      setPropertiesList(data);
+    } catch (e) {
+      console.error('Error loading properties:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFavorites = async () => {
+    if (!user) return;
+    try {
+      const data = await getFavorites(user.id);
+      const favoriteIds = data.map(f => f.property_id);
+      setFavorites(favoriteIds);
+      await AsyncStorage.setItem(FAV_KEY, JSON.stringify(favoriteIds));
+    } catch (e) {
+      console.error('Error loading favorites:', e);
+    }
+  };
+
+  const loadBookings = async () => {
+    if (!user) return;
+    try {
+      const data = await getBookings(user.id);
+      const formatted = (data || []).map(mapBooking);
+      setBookings(formatted);
+      await AsyncStorage.setItem(BOOKINGS_KEY, JSON.stringify(formatted));
+    } catch (e) {
+      console.error('Error loading bookings:', e);
+    }
+  };
 
   const persistFavorites = async (next) => {
     setFavorites(next);
@@ -51,32 +106,43 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
-  const persistProperties = async (next) => {
-    setPropertiesList(next);
+  const isFavorite = (id) => favorites.includes(id);
+
+  const toggleFavorite = async (id) => {
+    if (!user) return;
     try {
-      await AsyncStorage.setItem(PROPERTIES_KEY, JSON.stringify(next));
+      const isNowFavorite = await toggleFavoriteApi(user.id, id);
+      const next = isNowFavorite
+        ? [...favorites, id]
+        : favorites.filter((f) => f !== id);
+      persistFavorites(next);
     } catch (e) {
-      // ignore
+      console.error('Error toggling favorite:', e);
     }
   };
 
-  const isFavorite = (id) => favorites.includes(id);
-
-  const toggleFavorite = (id) => {
-    const next = favorites.includes(id)
-      ? favorites.filter((f) => f !== id)
-      : [...favorites, id];
-    persistFavorites(next);
+  const addBooking = async (bookingData) => {
+    if (!user) return;
+    try {
+      await createBooking({
+        ...bookingData,
+        user_id: user.id,
+      });
+      await loadBookings();
+    } catch (e) {
+      console.error('Error creating booking:', e);
+    }
   };
 
-  const addBooking = (booking) => {
-    const exists = bookings.some((b) => b.reference === booking.reference);
-    if (exists) return;
-    persistBookings([booking, ...bookings]);
-  };
-
-  const addProperty = (property) => {
-    persistProperties([property, ...propertiesList]);
+  const addProperty = async (propertyData) => {
+    if (!user) return;
+    try {
+      await createPropertyApi(propertyData, user.id);
+      await loadProperties();
+    } catch (e) {
+      console.error('Error creating property:', e);
+      throw e;
+    }
   };
 
   return (
@@ -85,11 +151,14 @@ export const AppDataProvider = ({ children }) => {
         favorites,
         bookings,
         propertiesList,
+        loading,
         hydrated,
         isFavorite,
         toggleFavorite,
         addBooking,
         addProperty,
+        loadProperties,
+        refreshProperties: loadProperties,
       }}
     >
       {children}

@@ -29,10 +29,10 @@ const SearchBar = ({ placeholder, value, onChangeText, onFilterPress, filterCoun
         <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
         <TextInput
           style={styles.input}
-          placeholder={placeholder || 'Search destination'}
-          placeholderTextColor={colors.textLight}
           value={value}
           onChangeText={onChangeText}
+          placeholder={placeholder || 'Search by location, price, type...'}
+          placeholderTextColor={colors.textSecondary}
         />
       </View>
       <Animated.View style={{ transform: [{ scale: filterScale }] }}>
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 3,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

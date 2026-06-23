@@ -12,25 +12,33 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import {
+  getDeviceId,
+  getDeviceBinding,
+  removeDeviceBinding,
+} from '../utils/deviceUtils';
+import * as Device from 'expo-device';
 
 const SettingsScreen = ({ navigation }) => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const { scheme, toggleDarkMode } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = React.useState(false);
   const [locationEnabled, setLocationEnabled] = React.useState(true);
+  const [deviceInfo, setDeviceInfo] = React.useState(null);
+  const [deviceBinding, setDeviceBinding] = React.useState(null);
 
   React.useEffect(() => {
     loadSettings();
+    loadDeviceInfo();
   }, []);
 
   const loadSettings = async () => {
     try {
       const notifications = await AsyncStorage.getItem('notificationsEnabled');
-      const darkMode = await AsyncStorage.getItem('darkModeEnabled');
       const location = await AsyncStorage.getItem('locationEnabled');
       
       if (notifications !== null) setNotificationsEnabled(notifications === 'true');
-      if (darkMode !== null) setDarkModeEnabled(darkMode === 'true');
       if (location !== null) setLocationEnabled(location === 'true');
     } catch (error) {
       console.log('Error loading settings:', error);
@@ -46,15 +54,6 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  const toggleDarkMode = async (value) => {
-    setDarkModeEnabled(value);
-    try {
-      await AsyncStorage.setItem('darkModeEnabled', value.toString());
-    } catch (error) {
-      console.log('Error saving dark mode setting:', error);
-    }
-  };
-
   const toggleLocation = async (value) => {
     setLocationEnabled(value);
     try {
@@ -64,7 +63,37 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  const settingsSections = [
+  const loadDeviceInfo = async () => {
+    try {
+      const deviceId = await getDeviceId();
+      const binding = await getDeviceBinding();
+      
+      setDeviceInfo({
+        deviceId: deviceId,
+        deviceName: Device.deviceName || 'Unknown Device',
+        manufacturer: Device.manufacturer || 'Unknown',
+        model: Device.model || 'Unknown',
+        osVersion: Device.osVersion || 'Unknown',
+        platform: Device.platformName || 'Unknown',
+      });
+      
+      setDeviceBinding(binding);
+    } catch (error) {
+      console.log('Error loading device info:', error);
+    }
+  };
+
+  const handleUnbindDevice = async () => {
+    try {
+      await removeDeviceBinding();
+      setDeviceBinding(null);
+      loadDeviceInfo();
+    } catch (error) {
+      console.log('Error unbinding device:', error);
+    }
+  };
+
+  const settingsSections = React.useMemo(() => [
     {
       title: 'Preferences',
       items: [
@@ -79,7 +108,7 @@ const SettingsScreen = ({ navigation }) => {
           icon: 'moon-outline',
           label: 'Dark Mode',
           type: 'switch',
-          value: darkModeEnabled,
+          value: scheme === 'dark',
           onValueChange: toggleDarkMode,
         },
         {
@@ -88,6 +117,48 @@ const SettingsScreen = ({ navigation }) => {
           type: 'switch',
           value: locationEnabled,
           onValueChange: toggleLocation,
+        },
+      ],
+    },
+    {
+      title: 'Device Information',
+      items: [
+        {
+          icon: 'phone-portrait-outline',
+          label: 'Device Name',
+          type: 'info',
+          value: deviceInfo?.deviceName || 'Loading...',
+        },
+        {
+          icon: 'build-outline',
+          label: 'Manufacturer',
+          type: 'info',
+          value: deviceInfo?.manufacturer || 'Loading...',
+        },
+        {
+          icon: 'hardware-chip-outline',
+          label: 'Model',
+          type: 'info',
+          value: deviceInfo?.model || 'Loading...',
+        },
+        {
+          icon: 'code-working-outline',
+          label: 'OS Version',
+          type: 'info',
+          value: deviceInfo?.osVersion || 'Loading...',
+        },
+        {
+          icon: 'fingerprint-outline',
+          label: 'Device ID',
+          type: 'info',
+          value: deviceInfo?.deviceId ? deviceInfo.deviceId.substring(0, 20) + '...' : 'Loading...',
+        },
+        {
+          icon: 'link-outline',
+          label: 'Device Status',
+          type: 'info',
+          value: deviceBinding ? 'Bound to account' : 'Not bound',
+          valueColor: deviceBinding ? colors.success : colors.textSecondary,
         },
       ],
     },
@@ -137,7 +208,7 @@ const SettingsScreen = ({ navigation }) => {
         },
       ],
     },
-  ];
+  ], [notificationsEnabled, scheme, locationEnabled, deviceInfo, deviceBinding]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -176,8 +247,12 @@ const SettingsScreen = ({ navigation }) => {
                       value={item.value}
                       onValueChange={item.onValueChange}
                       trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor={colors.surface}
+                      thumbColor={item.value ? colors.primary : colors.surface}
                     />
+                  ) : item.type === 'info' ? (
+                    <Text style={[styles.settingValue, item.valueColor && { color: item.valueColor }]}>
+                      {item.value}
+                    </Text>
                   ) : (
                     <TouchableOpacity onPress={() => item.route ? navigation.navigate(item.route) : item.onPress && item.onPress()}>
                       <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
@@ -282,6 +357,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     fontWeight: '500',
+  },
+  settingValue: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '400',
   },
   logoutButton: {
     flexDirection: 'row',

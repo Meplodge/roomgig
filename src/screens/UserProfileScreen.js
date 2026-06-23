@@ -41,7 +41,12 @@ const UserProfileScreen = ({ route, navigation }) => {
         <View style={styles.content}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+            <Image 
+              source={{ 
+                uri: user?.images?.find(img => img.is_roommate_photo)?.image_url || user?.avatar 
+              }} 
+              style={styles.avatar} 
+            />
             <View style={styles.onlineIndicator} />
           </View>
 
@@ -79,6 +84,92 @@ const UserProfileScreen = ({ route, navigation }) => {
                 </View>
               ))}
             </View>
+          </View>
+
+          {/* Personal Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="moon-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Sleep Schedule:</Text>
+              <Text style={styles.infoValue}>{user?.sleepSchedule || 'Flexible'}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="briefcase-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Work Schedule:</Text>
+              <Text style={styles.infoValue}>{user?.workSchedule || 'Office'}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Dietary Preference:</Text>
+              <Text style={styles.infoValue}>{user?.dietaryPreference || 'Omnivore'}</Text>
+            </View>
+            
+            {user?.languages && (
+              <View style={styles.infoRow}>
+                <Ionicons name="language-outline" size={20} color={colors.primary} />
+                <Text style={styles.infoLabel}>Languages:</Text>
+                <Text style={styles.infoValue}>{user.languages}</Text>
+              </View>
+            )}
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="people-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Social Style:</Text>
+              <Text style={styles.infoValue}>{user?.socialStyle || 'Ambivert'}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Cleanliness Level:</Text>
+              <Text style={styles.infoValue}>{user?.cleanlinessLevel || 'Moderate'}</Text>
+            </View>
+          </View>
+
+          {/* Lifestyle Preferences */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Lifestyle Preferences</Text>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="person-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Guest Policy:</Text>
+              <Text style={styles.infoValue}>{user?.guestPolicy || 'Occasional'}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="volume-high-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Noise Tolerance:</Text>
+              <Text style={styles.infoValue}>{user?.noiseTolerance || 'Moderate'}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="leaf-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Cooking Habits:</Text>
+              <Text style={styles.infoValue}>{user?.cookingHabits || 'Sometimes'}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="wine-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Alcohol Consumption:</Text>
+              <Text style={styles.infoValue}>{user?.alcoholConsumption || 'Social'}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="laptop-outline" size={20} color={colors.primary} />
+              <Text style={styles.infoLabel}>Work Environment:</Text>
+              <Text style={styles.infoValue}>{user?.workEnvironment || 'Moderate Noise'}</Text>
+            </View>
+            
+            {user?.dietaryAllergies && (
+              <View style={styles.infoRow}>
+                <Ionicons name="alert-circle-outline" size={20} color={colors.primary} />
+                <Text style={styles.infoLabel}>Dietary Allergies:</Text>
+                <Text style={styles.infoValue}>{user.dietaryAllergies}</Text>
+              </View>
+            )}
           </View>
 
           {/* Verification */}
@@ -255,6 +346,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     lineHeight: 24,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 12,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
   },
   interestsContainer: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,52 +8,56 @@ import {
   Image,
   Alert,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../constants/colors';
+import { useAuth } from '../context/AuthContext';
+import { getUserRoommateListings, deleteRoommateListing } from '../services/supabaseApi';
 
-const mockMyListings = [
-  {
-    id: '1',
-    type: 'Apartment',
-    title: 'Looking for roommate for 2BR apartment',
-    location: 'Downtown, Seattle',
-    price: 1200,
-    available: 'Available now',
-    postedBy: {
-      name: 'Sarah Johnson',
-      avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
-      age: 28,
-      occupation: 'Software Engineer',
-    },
-    preferences: ['No smoking', 'Pet friendly', 'Quiet hours 10pm-7am'],
-    images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600'],
-    amenities: ['WiFi', 'Laundry', 'Parking', 'Gym'],
-  },
-  {
-    id: '2',
-    type: 'House',
-    title: 'Room available in shared house',
-    location: 'Capitol Hill, Seattle',
-    price: 900,
-    available: 'Available July 1st',
-    postedBy: {
-      name: 'Sarah Johnson',
-      avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
-      age: 28,
-      occupation: 'Software Engineer',
-    },
-    preferences: ['Clean common areas', 'Vegetarian friendly', 'Weekend guests OK'],
-    images: ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600'],
-    amenities: ['Backyard', 'BBQ', 'WiFi', 'Parking'],
-  },
-];
+const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600';
 
 const MyRoommateListingsScreen = ({ navigation }) => {
-  const [listings, setListings] = useState(mockMyListings);
+  const { user } = useAuth();
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [listingToDelete, setListingToDelete] = useState(null);
+
+  const fetchListings = useCallback(async () => {
+    if (!user?.id) {
+      setListings([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const data = await getUserRoommateListings(user.id);
+      setListings(data);
+    } catch (error) {
+      console.error('Error fetching my roommate listings:', error);
+      Alert.alert('Error', 'Failed to load your listings.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchListings();
+    }, [fetchListings])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchListings();
+  };
 
   const handleEdit = (listing) => {
     navigation.navigate('PostRoommateListing', { listing, isEdit: true });
@@ -64,16 +68,25 @@ const MyRoommateListingsScreen = ({ navigation }) => {
     setDeleteModalVisible(true);
   };
 
-  const confirmDelete = () => {
-    setListings(listings.filter(l => l.id !== listingToDelete));
-    setDeleteModalVisible(false);
-    setListingToDelete(null);
-    Alert.alert('Success', 'Listing deleted successfully');
+  const confirmDelete = async () => {
+    try {
+      setDeleting(true);
+      await deleteRoommateListing(listingToDelete);
+      setListings(listings.filter(l => l.id !== listingToDelete));
+      setDeleteModalVisible(false);
+      setListingToDelete(null);
+      Alert.alert('Success', 'Listing deleted successfully');
+    } catch (error) {
+      console.error('Error deleting listing:', error);
+      Alert.alert('Error', 'Failed to delete listing. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const renderListing = (listing) => (
     <View key={listing.id} style={styles.listingCard}>
-      <Image source={{ uri: listing.images[0] }} style={styles.listingImage} />
+      <Image source={{ uri: listing.images?.[0] || PLACEHOLDER_IMAGE }} style={styles.listingImage} />
       <View style={styles.listingContent}>
         <View style={styles.listingHeader}>
           <View style={styles.typeBadge}>
@@ -117,7 +130,7 @@ const MyRoommateListingsScreen = ({ navigation }) => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Listings</Text>
+        <Text style={styles.headerTitle}>My Roommate Listings</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('PostRoommateListing')}
@@ -127,10 +140,18 @@ const MyRoommateListingsScreen = ({ navigation }) => {
       </View>
 
       {/* Listings */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
+        }
       >
         {listings.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -155,6 +176,7 @@ const MyRoommateListingsScreen = ({ navigation }) => {
           </>
         )}
       </ScrollView>
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -182,8 +204,13 @@ const MyRoommateListingsScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.modalDeleteButton}
                 onPress={confirmDelete}
+                disabled={deleting}
               >
-                <Text style={styles.modalDeleteText}>Delete</Text>
+                {deleting ? (
+                  <ActivityIndicator size="small" color={colors.surface} />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Delete</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -224,6 +251,11 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },

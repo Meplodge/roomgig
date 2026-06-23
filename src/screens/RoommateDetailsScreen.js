@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,24 @@ import {
   Image,
   Alert,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../constants/colors';
 
+const { width: windowWidth } = Dimensions.get('window');
+
 const RoommateDetailsScreen = ({ route, navigation }) => {
   const { listing } = route.params || {};
   const [selectedTab, setSelectedTab] = useState('About');
   const [requestModalVisible, setRequestModalVisible] = useState(false);
   const [messageModalVisible, setMessageModalVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const scrollRef = useRef(null);
 
-  const tabs = ['About', 'Preferences', 'Amenities'];
+  const tabs = ['About', 'Personal Info', 'Lifestyle', 'Amenities'];
 
   const handleContact = () => {
     setMessageModalVisible(true);
@@ -45,7 +50,28 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
         {/* Image Carousel */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: listing.images[0] }} style={styles.mainImage} />
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+              setCurrentImageIndex(index);
+            }}
+            style={styles.imageScroll}
+          >
+            {listing.images && listing.images.length > 0 ? (
+              listing.images.map((img, index) => (
+                <Image key={index} source={{ uri: img }} style={styles.mainImage} />
+              ))
+            ) : (
+              <Image 
+                source={{ uri: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600' }} 
+                style={styles.mainImage} 
+              />
+            )}
+          </ScrollView>
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.6)']}
             style={styles.imageGradient}
@@ -65,6 +91,20 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
               <Ionicons name="share-outline" size={22} color={colors.text} />
             </View>
           </TouchableOpacity>
+          {/* Image Dots */}
+          {listing.images && listing.images.length > 1 && (
+            <View style={styles.imageDots}>
+              {listing.images.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.imageDot,
+                    index === currentImageIndex && styles.imageDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Content */}
@@ -91,7 +131,12 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
 
           {/* Posted By */}
           <View style={styles.postedByCard}>
-            <Image source={{ uri: listing.postedBy.avatar }} style={styles.posterAvatar} />
+            <Image 
+              source={{ 
+                uri: listing.postedBy.avatar || listing.images?.[0] || 'https://randomuser.me/api/portraits/lego/1.jpg' 
+              }} 
+              style={styles.posterAvatar} 
+            />
             <View style={styles.posterInfo}>
               <Text style={styles.posterName}>{listing.postedBy.name}</Text>
               <Text style={styles.posterDetails}>{listing.postedBy.age} years old • {listing.postedBy.occupation}</Text>
@@ -130,17 +175,91 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
               </View>
             )}
 
-            {selectedTab === 'Preferences' && (
+            {selectedTab === 'Personal Info' && (
               <View>
-                <Text style={styles.sectionTitle}>Roommate Preferences</Text>
-                <View style={styles.preferencesGrid}>
-                  {listing.preferences.map((pref, index) => (
-                    <View key={index} style={styles.preferenceItem}>
-                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                      <Text style={styles.preferenceText}>{pref}</Text>
-                    </View>
-                  ))}
+                <Text style={styles.sectionTitle}>Personal Information</Text>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="moon-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Sleep Schedule:</Text>
+                  <Text style={styles.infoValue}>{listing.sleepSchedule || 'Flexible'}</Text>
                 </View>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="briefcase-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Work Schedule:</Text>
+                  <Text style={styles.infoValue}>{listing.workSchedule || 'Office'}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Dietary Preference:</Text>
+                  <Text style={styles.infoValue}>{listing.dietaryPreference || 'Omnivore'}</Text>
+                </View>
+                
+                {listing.languages && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="language-outline" size={20} color={colors.primary} />
+                    <Text style={styles.infoLabel}>Languages:</Text>
+                    <Text style={styles.infoValue}>{listing.languages}</Text>
+                  </View>
+                )}
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="people-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Social Style:</Text>
+                  <Text style={styles.infoValue}>{listing.socialStyle || 'Ambivert'}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Cleanliness Level:</Text>
+                  <Text style={styles.infoValue}>{listing.cleanlinessLevel || 'Moderate'}</Text>
+                </View>
+              </View>
+            )}
+
+            {selectedTab === 'Lifestyle' && (
+              <View>
+                <Text style={styles.sectionTitle}>Lifestyle Preferences</Text>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="person-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Guest Policy:</Text>
+                  <Text style={styles.infoValue}>{listing.guestPolicy || 'Occasional'}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="volume-high-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Noise Tolerance:</Text>
+                  <Text style={styles.infoValue}>{listing.noiseTolerance || 'Moderate'}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="leaf-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Cooking Habits:</Text>
+                  <Text style={styles.infoValue}>{listing.cookingHabits || 'Sometimes'}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="wine-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Alcohol Consumption:</Text>
+                  <Text style={styles.infoValue}>{listing.alcoholConsumption || 'Social'}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Ionicons name="laptop-outline" size={20} color={colors.primary} />
+                  <Text style={styles.infoLabel}>Work Environment:</Text>
+                  <Text style={styles.infoValue}>{listing.workEnvironment || 'Moderate Noise'}</Text>
+                </View>
+                
+                {listing.dietaryAllergies && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="alert-circle-outline" size={20} color={colors.primary} />
+                    <Text style={styles.infoLabel}>Dietary Allergies:</Text>
+                    <Text style={styles.infoValue}>{listing.dietaryAllergies}</Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -157,6 +276,18 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
                     </View>
                   ))}
                 </View>
+                
+                {/* Property Photos */}
+                {listing.images && listing.images.length > 0 && (
+                  <View style={styles.propertyPhotosSection}>
+                    <Text style={styles.sectionTitle}>Property Photos</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
+                      {listing.images.map((img, index) => (
+                        <Image key={index} source={{ uri: img }} style={styles.propertyPhoto} />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -258,8 +389,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     height: 300,
   },
+  imageScroll: {
+    width: windowWidth,
+    height: '100%',
+  },
   mainImage: {
-    width: '100%',
+    width: windowWidth,
     height: '100%',
     backgroundColor: colors.border,
   },
@@ -308,6 +443,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  imageDots: {
+    position: 'absolute',
+    bottom: 20,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  imageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  imageDotActive: {
+    backgroundColor: colors.surface,
+    width: 20,
   },
   content: {
     backgroundColor: colors.background,
@@ -440,6 +591,25 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 24,
   },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 12,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
   preferencesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -485,6 +655,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
+  },
+  propertyPhotosSection: {
+    marginTop: 24,
+  },
+  photosScroll: {
+    marginTop: 12,
+  },
+  propertyPhoto: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    marginRight: 12,
   },
   bottomBar: {
     flexDirection: 'row',

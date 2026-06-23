@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../constants/colors';
 import BottomNavBar from '../components/BottomNavBar';
 import { useAuth } from '../context/AuthContext';
+import { updateProfile } from '../services/supabaseApi';
 
 const menuSections = [
   {
@@ -19,7 +23,8 @@ const menuSections = [
     items: [
       { icon: 'person-outline', label: 'Edit Profile', route: 'EditProfile' },
       { icon: 'card-outline', label: 'Payment Methods', route: 'PaymentMethods' },
-      { icon: 'home-outline', label: 'My Listings', route: 'MyRoommateListings' },
+      { icon: 'business-outline', label: 'My Property Listings', route: 'MyPropertyListings' },
+      { icon: 'people-outline', label: 'My Roommate Listings', route: 'MyRoommateListings' },
       { icon: 'time-outline', label: 'Booking History', route: 'BookingHistory' },
     ],
   },
@@ -35,7 +40,56 @@ const menuSections = [
 ];
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, logout } = useAuth();
+  const { user, profile, logout, loadProfile } = useAuth();
+  const [avatar, setAvatar] = useState(profile?.avatar_url || user?.avatar || null);
+  const [updatingAvatar, setUpdatingAvatar] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+
+  // Update avatar when profile data changes
+  React.useEffect(() => {
+    if (profile?.avatar_url) {
+      setAvatar(profile.avatar_url);
+    }
+  }, [profile]);
+
+  // Load profile data when component mounts
+  React.useEffect(() => {
+    if (user && !profile) {
+      loadProfile(user.id);
+    }
+  }, [user, profile, loadProfile]);
+
+  const handlePickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setUpdatingAvatar(true);
+        const imageUri = result.assets[0].uri;
+
+        // Update local state immediately
+        setAvatar(imageUri);
+
+        // Update profile in database
+        await updateProfile(user.id, { avatar_url: imageUri });
+
+        // Reload profile to sync with auth context
+        await loadProfile(user.id);
+
+        Alert.alert('Success', 'Profile image updated successfully');
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to update profile image');
+    } finally {
+      setUpdatingAvatar(false);
+    }
+  };
 
   const formatName = (name) =>
     (name || 'User').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -48,10 +102,15 @@ const ProfileScreen = ({ navigation }) => {
       >
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          <Image
-            source={{ uri: user?.avatar || 'https://randomuser.me/api/portraits/men/32.jpg' }}
-            style={styles.avatar}
-          />
+          <TouchableOpacity style={styles.avatarContainer} onPress={() => setShowImageViewer(true)}>
+            <Image
+              source={{ uri: avatar || 'https://randomuser.me/api/portraits/men/32.jpg' }}
+              style={styles.avatar}
+            />
+            <View style={styles.avatarOverlay}>
+              <Ionicons name="expand" size={24} color={colors.surface} />
+            </View>
+          </TouchableOpacity>
           <Text style={styles.name}>{formatName(user?.name)}</Text>
           <Text style={styles.email}>{user?.email || ''}</Text>
           <TouchableOpacity style={styles.editButton}>
@@ -112,6 +171,42 @@ const ProfileScreen = ({ navigation }) => {
       </ScrollView>
 
       <BottomNavBar activeTab="profile" navigation={navigation} />
+
+      {/* Full Screen Image Viewer Modal */}
+      <Modal
+        visible={showImageViewer}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageViewer(false)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerClose}
+            onPress={() => setShowImageViewer(false)}
+          >
+            <Ionicons name="close" size={28} color={colors.surface} />
+          </TouchableOpacity>
+          <Image
+            source={{ uri: avatar || 'https://randomuser.me/api/portraits/men/32.jpg' }}
+            style={styles.fullScreenImage}
+            resizeMode="contain"
+          />
+          <TouchableOpacity
+            style={styles.updateImageButton}
+            onPress={handlePickImage}
+            disabled={updatingAvatar}
+          >
+            {updatingAvatar ? (
+              <Ionicons name="refresh" size={20} color={colors.surface} />
+            ) : (
+              <>
+                <Ionicons name="camera" size={20} color={colors.surface} />
+                <Text style={styles.updateImageButtonText}>Update Photo</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -129,12 +224,28 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 24,
   },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 14,
+  },
   avatar: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    marginBottom: 14,
     backgroundColor: colors.border,
+    borderWidth: 3,
+    borderColor: colors.surface,
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 3,
     borderColor: colors.surface,
   },
@@ -257,6 +368,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  updateImageButton: {
+    position: 'absolute',
+    bottom: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 28,
+    gap: 8,
+  },
+  updateImageButtonText: {
+    color: colors.surface,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

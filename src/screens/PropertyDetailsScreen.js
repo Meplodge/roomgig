@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,15 @@ import {
   Alert,
   Modal,
   Share,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import ImageCarousel from '../components/ImageCarousel';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const PropertyDetailsScreen = ({ route, navigation }) => {
   const { property } = route.params;
@@ -24,6 +27,9 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const imageViewerRef = useRef(null);
   const [reviews, setReviews] = useState([
     { id: '1', name: 'John Doe', rating: 5.0, text: 'Amazing property! The host was very responsive and the place was exactly as described.' },
     { id: '2', name: 'Jane Smith', rating: 4.5, text: 'Great location and beautiful views. Would definitely recommend!' },
@@ -31,8 +37,8 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
 
   const handleShare = async () => {
     try {
-      const shareMessage = `Check out this amazing property: ${property.name}\n\n📍 ${property.location}\n💰 $${property.price.toLocaleString()}/month\n\n${property.description}\n\nView on Estatery!`;
-      
+      const shareMessage = `Check out this amazing property: ${property.name || property.title}\n\n📍 ${property.location || property.city}\n💰 $${property.price ? property.price.toLocaleString() : '0'}/month\n\n${property.description || ''}\n\nView on Estatery!`;
+
       await Share.share({
         message: shareMessage,
         url: property.image,
@@ -40,6 +46,11 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
     } catch (error) {
       Alert.alert('Error', 'Unable to share property');
     }
+  };
+
+  const handleImagePress = (index) => {
+    setCurrentImageIndex(index);
+    setShowImageViewer(true);
   };
 
   const handleSubmitReview = () => {
@@ -108,7 +119,7 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
           <View style={styles.imageIndicators}>
             <View style={styles.indicator}>
               <Ionicons name="water-outline" size={14} color={colors.text} />
-              <Text style={styles.indicatorText}>{property.baths} Baths</Text>
+              <Text style={styles.indicatorText}>{property.baths || property.bathrooms || 0} Baths</Text>
             </View>
             <View style={styles.indicator}>
               <Ionicons name="cube-outline" size={14} color={colors.text} />
@@ -124,12 +135,12 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
         {/* Property Info */}
         <View style={styles.propertyInfo}>
           <Text style={styles.propertyType}>Luxury Residence</Text>
-          <Text style={styles.propertyName}>{property.name}</Text>
-          <Text style={styles.propertyLocation}>{property.location}</Text>
+          <Text style={styles.propertyName}>{property.name || property.title}</Text>
+          <Text style={styles.propertyLocation}>{property.location || property.city}</Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={16} color={colors.star} />
-            <Text style={styles.rating}>{property.rating}</Text>
-            <Text style={styles.reviews}>({property.reviews} Reviews)</Text>
+            <Text style={styles.rating}>{property.rating || property.rating_avg || 0}</Text>
+            <Text style={styles.reviews}>({property.reviews || property.review_count || 0} Reviews)</Text>
           </View>
         </View>
 
@@ -155,15 +166,15 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
             <View style={styles.specsContainer}>
               <View style={styles.specItem}>
                 <Ionicons name="bed-outline" size={22} color={colors.primary} />
-                <Text style={styles.specValue}>{property.beds} Beds</Text>
+                <Text style={styles.specValue}>{property.beds || property.bedrooms || 0} Beds</Text>
               </View>
               <View style={styles.specItem}>
                 <Ionicons name="water-outline" size={22} color={colors.primary} />
-                <Text style={styles.specValue}>{property.baths} Baths</Text>
+                <Text style={styles.specValue}>{property.baths || property.bathrooms || 0} Baths</Text>
               </View>
               <View style={styles.specItem}>
                 <Ionicons name="expand-outline" size={22} color={colors.primary} />
-                <Text style={styles.specValue}>{property.sqft.toLocaleString()} Sqft</Text>
+                <Text style={styles.specValue}>{(property.sqft || property.square_feet || 0).toLocaleString()} Sqft</Text>
               </View>
             </View>
 
@@ -177,7 +188,7 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
             <View style={styles.facilitiesSection}>
               <Text style={styles.sectionTitle}>Facilities</Text>
               <View style={styles.facilitiesGrid}>
-                {property.facilities.map((facility, index) => (
+                {(property.facilities || []).map((facility, index) => (
                   <View key={index} style={styles.facilityItem}>
                     <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
                     <Text style={styles.facilityText}>{facility}</Text>
@@ -195,7 +206,7 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
                   style={styles.hostAvatar}
                 />
                 <View style={styles.hostDetails}>
-                  <Text style={styles.hostName}>{property.host}</Text>
+                  <Text style={styles.hostName}>{property.host || property.host_name || 'Host'}</Text>
                   <View style={styles.hostRatingRow}>
                     <Ionicons name="star" size={13} color={colors.star} />
                     <Text style={styles.hostRating}>4.8 (120 reviews)</Text>
@@ -212,8 +223,14 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
         {selectedTab === 'Gallery' && (
           <View style={styles.tabContent}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {property.images.map((image, index) => (
-                <Image key={index} source={{ uri: image }} style={styles.galleryImage} />
+              {(property.images || [property.image]).map((image, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => handleImagePress(index)}
+                  activeOpacity={0.9}
+                >
+                  <Image source={{ uri: image }} style={styles.galleryImage} />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
@@ -251,7 +268,7 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
       <View style={styles.bookingBar}>
         <View>
           <Text style={styles.priceLabel}>Price per month</Text>
-          <Text style={styles.price}>${property.price.toLocaleString()}</Text>
+          <Text style={styles.price}>${property.price ? property.price.toLocaleString() : '0'}</Text>
         </View>
         <View style={styles.buttonRow}>
           <TouchableOpacity
@@ -308,6 +325,52 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
                 <Text style={styles.submitReviewButtonText}>Submit Review</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Full Screen Image Viewer Modal */}
+      <Modal
+        visible={showImageViewer}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageViewer(false)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerClose}
+            onPress={() => setShowImageViewer(false)}
+          >
+            <Ionicons name="close" size={28} color={colors.surface} />
+          </TouchableOpacity>
+          <ScrollView
+            ref={imageViewerRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={(event) => {
+              const contentOffset = event.nativeEvent.contentOffset;
+              const index = Math.round(contentOffset.x / SCREEN_WIDTH);
+              setCurrentImageIndex(index);
+            }}
+            scrollEventThrottle={16}
+            style={styles.imageViewerScrollView}
+            contentOffset={{ x: currentImageIndex * SCREEN_WIDTH, y: 0 }}
+          >
+            {(property.images || [property.image]).map((image, index) => (
+              <View key={index} style={[styles.imageViewerImageWrapper, { width: SCREEN_WIDTH }]}>
+                <Image
+                  source={{ uri: image }}
+                  style={styles.fullScreenImage}
+                  resizeMode="contain"
+                />
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.imageViewerPagination}>
+            <Text style={styles.imageViewerPaginationText}>
+              {currentImageIndex + 1} / {(property.images || [property.image]).length}
+            </Text>
           </View>
         </View>
       </Modal>
@@ -731,6 +794,48 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 16,
     fontWeight: '700',
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  imageViewerScrollView: {
+    flex: 1,
+  },
+  imageViewerImageWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageViewerPagination: {
+    position: 'absolute',
+    bottom: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  imageViewerPaginationText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

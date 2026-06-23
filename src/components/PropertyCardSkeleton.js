@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
     borderRadius: 16,
-    backgroundColor: colors.border,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   shimmer: {
     position: 'absolute',
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   skeleton: {
-    backgroundColor: colors.border,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderRadius: 8,
   },
 });

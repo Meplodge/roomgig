@@ -119,25 +119,25 @@ const PropertyCard = ({ property, onPress, style }) => {
           </View>
           <View style={styles.content}>
             <View style={styles.header}>
-              <Text style={styles.name}>{property.name}</Text>
-              <Text style={styles.price}>${property.price.toLocaleString()}</Text>
+              <Text style={styles.name}>{property.name || property.title}</Text>
+              <Text style={styles.price}>${property.price ? property.price.toLocaleString() : '0'}</Text>
             </View>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.location}>{property.location}</Text>
+              <Text style={styles.location}>{property.location || property.city}</Text>
             </View>
             <View style={styles.specs}>
               <View style={styles.spec}>
                 <Ionicons name="bed-outline" size={15} color={colors.textSecondary} />
-                <Text style={styles.specText}>{property.beds} Beds</Text>
+                <Text style={styles.specText}>{property.beds || property.bedrooms || 0} Beds</Text>
               </View>
               <View style={styles.spec}>
                 <Ionicons name="water-outline" size={15} color={colors.textSecondary} />
-                <Text style={styles.specText}>{property.baths} Baths</Text>
+                <Text style={styles.specText}>{property.baths || property.bathrooms || 0} Baths</Text>
               </View>
               <View style={styles.spec}>
                 <Ionicons name="expand-outline" size={15} color={colors.textSecondary} />
-                <Text style={styles.specText}>{property.sqft.toLocaleString()} Sqft</Text>
+                <Text style={styles.specText}>{(property.sqft || property.square_feet || 0).toLocaleString()} Sqft</Text>
               </View>
             </View>
           </View>

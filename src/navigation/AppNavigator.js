@@ -11,6 +11,8 @@ import InsightsScreen from '../screens/InsightsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
+import EmailConfirmationScreen from '../screens/EmailConfirmationScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import BookingScreen from '../screens/BookingScreen';
 import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
 import BookingHistoryScreen from '../screens/BookingHistoryScreen';
@@ -29,10 +31,12 @@ import ViewAllScreen from '../screens/ViewAllScreen';
 import BookWithFriendsScreen from '../screens/BookWithFriendsScreen';
 import RoommateFinderScreen from '../screens/RoommateFinderScreen';
 import PostRoommateListingScreen from '../screens/PostRoommateListingScreen';
+import ImageCropScreen from '../screens/ImageCropScreen';
 import RoommateDetailsScreen from '../screens/RoommateDetailsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import ViewAllRoommatesScreen from '../screens/ViewAllRoommatesScreen';
 import MyRoommateListingsScreen from '../screens/MyRoommateListingsScreen';
+import MyPropertyListingsScreen from '../screens/MyPropertyListingsScreen';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -57,6 +61,8 @@ const AppNavigator = () => {
             {!onboardingCompleted && <Stack.Screen name="Onboarding" component={OnboardingScreen} />}
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="EmailConfirmation" component={EmailConfirmationScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         ) : (
           <>
@@ -78,9 +84,11 @@ const AppNavigator = () => {
             <Stack.Screen name="RoommateFinder" component={RoommateFinderScreen} />
             <Stack.Screen name="RoommateDetails" component={RoommateDetailsScreen} />
             <Stack.Screen name="PostRoommateListing" component={PostRoommateListingScreen} />
+            <Stack.Screen name="ImageCrop" component={ImageCropScreen} />
             <Stack.Screen name="UserProfile" component={UserProfileScreen} />
             <Stack.Screen name="ViewAllRoommates" component={ViewAllRoommatesScreen} />
             <Stack.Screen name="MyRoommateListings" component={MyRoommateListingsScreen} />
+            <Stack.Screen name="MyPropertyListings" component={MyPropertyListingsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />

@@ -101,7 +101,10 @@ const LoginScreen = ({ navigation }) => {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.forgot}>
+          <TouchableOpacity
+            style={styles.forgot}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
             <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
 
@@ -124,7 +127,12 @@ const LoginScreen = ({ navigation }) => {
             activeOpacity={0.9}
           >
             <View style={styles.googleIcon}>
-              <Ionicons name="logo-google" size={20} color="#4285F4" />
+              <View style={styles.googleLogo}>
+                <View style={[styles.googleGPart, { backgroundColor: '#4285F4' }]} />
+                <View style={[styles.googleGPart, { backgroundColor: '#EA4335', left: 8 }]} />
+                <View style={[styles.googleGPart, { backgroundColor: '#FBBC05', top: 8 }]} />
+                <View style={[styles.googleGPart, { backgroundColor: '#34A853', left: 8, top: 8 }]} />
+              </View>
             </View>
             <Text style={styles.googleButtonText}>Sign in with Google</Text>
           </TouchableOpacity>
@@ -145,7 +153,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 40 },
+  logoRow: { flexDirection: 'column', alignItems: 'center', marginBottom: 40 },
   logoBadge: {
     width: 42,
     height: 42,
@@ -153,11 +161,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginBottom: 10,
   },
   logoText: { fontSize: 22, fontWeight: '700', color: colors.text },
-  title: { fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8 },
-  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 28 },
+  title: { fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8, textAlign: 'center' },
+  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 28, textAlign: 'center' },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,6 +221,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  googleLogo: {
+    width: 20,
+    height: 20,
+    position: 'relative',
+  },
+  googleGPart: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 2,
   },
   googleButtonText: { color: colors.surface, fontSize: 16, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },

@@ -20,18 +20,24 @@ const SignupScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSignup = async () => {
     setError('');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
     setSubmitting(true);
     try {
       await signup(name.trim(), email.trim(), password);
+      navigation.navigate('EmailConfirmation', { email: email.trim() });
     } catch (e) {
       setError(e.message);
-    } finally {
       setSubmitting(false);
     }
   };
@@ -50,6 +56,13 @@ const SignupScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
+
+          <View style={styles.logoRow}>
+            <View style={styles.logoBadge}>
+              <Ionicons name="home" size={22} color={colors.surface} />
+            </View>
+            <Text style={styles.logoText}>Estatery</Text>
+          </View>
 
           <Text style={styles.title}>Create account</Text>
           <Text style={styles.subtitle}>Join us to find your perfect property</Text>
@@ -113,6 +126,28 @@ const SignupScreen = ({ navigation }) => {
             </View>
           </View>
 
+          <View style={styles.field}>
+            <Text style={styles.label}>Confirm Password</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm your password"
+                placeholderTextColor={colors.textLight}
+                secureTextEntry={!showConfirmPassword}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+              <TouchableOpacity onPress={() => setShowConfirmPassword((s) => !s)}>
+                <Ionicons
+                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <TouchableOpacity
             style={[styles.button, submitting && styles.buttonDisabled]}
             onPress={handleSignup}
@@ -151,8 +186,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  title: { fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8 },
-  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 28 },
+  logoRow: { flexDirection: 'column', alignItems: 'center', marginBottom: 24 },
+  logoBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  logoText: { fontSize: 22, fontWeight: '700', color: colors.text },
+  title: { fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8, textAlign: 'center' },
+  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 28, textAlign: 'center' },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

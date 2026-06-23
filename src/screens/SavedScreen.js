@@ -9,15 +9,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
-import { properties } from '../data/mockData';
 import PropertyCard from '../components/PropertyCard';
 import BottomNavBar from '../components/BottomNavBar';
 import EmptyState from '../components/EmptyState';
 import { useAppData } from '../context/AppDataContext';
 
 const SavedScreen = ({ navigation }) => {
-  const { favorites, toggleFavorite } = useAppData();
-  const saved = properties.filter((p) => favorites.includes(p.id));
+  const { favorites, toggleFavorite, propertiesList } = useAppData();
+  const saved = propertiesList.filter((p) => favorites.includes(p.id));
 
   const removeItem = (id) => {
     toggleFavorite(id);

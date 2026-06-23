@@ -28,17 +28,30 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
   const reference = referenceRef.current;
 
   useEffect(() => {
+    // Calculate check_out_date from check_in_date and months
+    // booking.date is in format like "Jun 23, 2026"
+    const [monthStr, dayStr, yearStr] = booking.date.split(' ');
+    const monthMap = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+    const month = monthMap[monthStr];
+    const day = parseInt(dayStr.replace(',', ''));
+    const year = parseInt(yearStr);
+
+    const checkInDate = new Date(year, month, day);
+    const checkOutDate = new Date(checkInDate);
+    checkOutDate.setMonth(checkOutDate.getMonth() + booking.months);
+
+    // Format dates as YYYY-MM-DD for database
+    const formatDate = (date) => {
+      return date.toISOString().split('T')[0];
+    };
+
     addBooking({
       reference,
-      propertyId: property.id,
-      propertyName: property.name,
-      propertyImage: property.image,
-      propertyLocation: property.location,
-      date: booking.date,
-      months: booking.months,
+      property_id: property.id,
+      check_in_date: formatDate(checkInDate),
+      check_out_date: formatDate(checkOutDate),
       guests: booking.guests,
-      total: booking.total,
-      createdAt: new Date().toISOString(),
+      total_amount: booking.total,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

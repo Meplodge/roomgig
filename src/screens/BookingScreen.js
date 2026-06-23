@@ -209,16 +209,19 @@ const BookingScreen = ({ route, navigation }) => {
                   activeOpacity={0.7}
                 >
                   {day ? (
-                    <View style={[styles.dayInner, selected && styles.daySelected]}>
-                      <Text
-                        style={[
-                          styles.dayText,
-                          disabled && styles.dayDisabled,
-                          selected && styles.daySelectedText,
-                        ]}
-                      >
-                        {day}
-                      </Text>
+                    <View style={styles.dayCellWrapper}>
+                      {selected && <View style={styles.selectedCircle} />}
+                      <View style={[styles.dayInner, selected && styles.daySelected]}>
+                        <Text
+                          style={[
+                            styles.dayText,
+                            disabled && styles.dayDisabled,
+                            selected && styles.daySelectedText,
+                          ]}
+                        >
+                          {day}
+                        </Text>
+                      </View>
                     </View>
                   ) : null}
                 </TouchableOpacity>
@@ -556,6 +559,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  dayCellWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 44,
+    height: 44,
+  },
+  selectedCircle: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
   dayInner: {
     width: 36,
     height: 36,
@@ -563,10 +581,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  daySelected: { backgroundColor: colors.primary },
+  daySelected: { 
+    backgroundColor: 'transparent',
+  },
   dayText: { fontSize: 14, color: colors.text, fontWeight: '500' },
   dayDisabled: { color: colors.textLight },
-  daySelectedText: { color: colors.surface, fontWeight: '700' },
+  daySelectedText: { color: colors.primary, fontWeight: '700' },
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -656,19 +676,20 @@ const styles = StyleSheet.create({
   bottomTotal: { fontSize: 22, fontWeight: '700', color: colors.primary },
   bottomButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
   },
   friendsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.accent,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    borderRadius: 28,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 20,
+    minWidth: 100,
   },
   friendsButtonText: {
     color: colors.surface,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     marginLeft: 4,
   },
@@ -676,9 +697,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 28,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    minWidth: 100,
   },
   confirmDisabled: { opacity: 0.5 },
   confirmText: { color: colors.surface, fontSize: 15, fontWeight: '700', marginRight: 8 },

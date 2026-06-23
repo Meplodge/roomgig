@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import BottomNavBar from '../components/BottomNavBar';
 import EmptyState from '../components/EmptyState';
+import ChatItemSkeleton from '../components/ChatItemSkeleton';
 import { useMessages } from '../context/MessagesContext';
 
 const formatRelativeTime = (timestamp) => {
@@ -27,7 +28,7 @@ const formatRelativeTime = (timestamp) => {
 };
 
 const ChatListScreen = ({ navigation }) => {
-  const { conversations } = useMessages();
+  const { conversations, loading } = useMessages();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -44,7 +45,14 @@ const ChatListScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {conversations.length === 0 ? (
+        {loading ? (
+          <>
+            <ChatItemSkeleton />
+            <ChatItemSkeleton />
+            <ChatItemSkeleton />
+            <ChatItemSkeleton />
+          </>
+        ) : conversations.length === 0 ? (
           <EmptyState
             icon="chatbubbles-outline"
             title="No Messages Yet"

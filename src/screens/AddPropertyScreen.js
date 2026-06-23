@@ -19,10 +19,15 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { colors } from '../constants/colors';
 import { useAppData } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
 import ErrorState from '../components/ErrorState';
+import { optimizeImage } from '../utils/imageOptimizer';
+import { createProperty, updateProperty, getFacilities } from '../services/supabaseApi';
 
-const AddPropertyScreen = ({ navigation }) => {
-  const { addBooking, addProperty } = useAppData();
+const AddPropertyScreen = ({ navigation, route }) => {
+  const { addBooking, addProperty, refreshProperties } = useAppData();
+  const { user } = useAuth();
+  const { property, isEditing } = route.params || {};
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
@@ -48,6 +53,59 @@ const AddPropertyScreen = ({ navigation }) => {
     longitudeDelta: 0.0421,
   });
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [availableFacilities, setAvailableFacilities] = useState([]);
+  const [selectedFacilities, setSelectedFacilities] = useState([]);
+
+  // Load available facilities
+  useEffect(() => {
+    loadFacilities();
+  }, []);
+
+  const loadFacilities = async () => {
+    try {
+      const data = await getFacilities();
+      setAvailableFacilities(data);
+    } catch (error) {
+      console.error('Error loading facilities:', error);
+    }
+  };
+
+  const toggleFacility = (facilityName) => {
+    setSelectedFacilities(prev =>
+      prev.includes(facilityName)
+        ? prev.filter(f => f !== facilityName)
+        : [...prev, facilityName]
+    );
+  };
+
+  // Populate form when editing
+  useEffect(() => {
+    if (isEditing && property) {
+      setFormData({
+        name: property.title || property.name || '',
+        type: property.type || 'Rent',
+        category: property.category || 'Apartment',
+        location: property.city || property.location || '',
+        price: property.price?.toString() || '',
+        beds: property.bedrooms?.toString() || property.beds?.toString() || '',
+        baths: property.bathrooms?.toString() || property.baths?.toString() || '',
+        sqft: property.square_feet?.toString() || property.sqft?.toString() || '',
+        description: property.description || '',
+        facilities: property.facilities?.join(', ') || '',
+      });
+      setSelectedFacilities(property.facilities || []);
+      setSelectedLocation({
+        latitude: property.latitude || 40.7128,
+        longitude: property.longitude || -74.0060,
+      });
+      setMapRegion({
+        latitude: property.latitude || 40.7128,
+        longitude: property.longitude || -74.0060,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
+    }
+  }, [isEditing, property]);
 
   const getCurrentLocation = async () => {
     try {
@@ -100,11 +158,15 @@ const AddPropertyScreen = ({ navigation }) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
-        quality: 0.8,
+        quality: 1,
       });
 
       if (!result.canceled) {
-        const selectedImages = result.assets.map(asset => asset.uri);
+        const selectedImages = await Promise.all(
+          result.assets.map(asset =>
+            optimizeImage(asset.uri, { width: asset.width, height: asset.height })
+          )
+        );
         setImages([...images, ...selectedImages]);
         setError(null);
       }
@@ -116,7 +178,7 @@ const AddPropertyScreen = ({ navigation }) => {
     }
   };
 
-  const handleAddProperty = () => {
+  const handleAddProperty = async () => {
     if (!formData.name || !formData.location || !formData.price || !formData.beds || !formData.baths) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -127,48 +189,65 @@ const AddPropertyScreen = ({ navigation }) => {
       return;
     }
 
-    if (images.length === 0) {
+    if (!isEditing && images.length === 0) {
       Alert.alert('Error', 'Please add at least one image');
+      return;
+    }
+
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to add a property');
       return;
     }
 
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newProperty = {
-        id: Date.now().toString(),
+    try {
+      const propertyData = {
         name: formData.name,
-        type: formData.type,
-        category: formData.category,
+        type: formData.type.toLowerCase(),
+        category: formData.category.toLowerCase(),
         location: formData.location,
         price: parseFloat(formData.price),
         beds: parseInt(formData.beds),
         baths: parseInt(formData.baths),
         sqft: parseInt(formData.sqft) || 0,
-        image: images[0],
-        images: images,
+        images: images.length > 0 ? images : undefined,
         description: formData.description,
-        facilities: formData.facilities.split(',').map(f => f.trim()).filter(f => f),
-        host: 'You',
-        rating: 0,
-        reviews: 0,
-        isFavorite: false,
+        facilities: selectedFacilities,
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude,
       };
 
-      // Save property to context
-      addProperty(newProperty);
+      if (isEditing) {
+        await updateProperty(property.id, propertyData, user.id);
+        await refreshProperties();
+        Alert.alert('Success', 'Property updated successfully', [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.goBack();
+            },
+          },
+        ]);
+      } else {
+        await createProperty(propertyData, user.id);
+        await refreshProperties();
+        Alert.alert('Success', 'Property added successfully', [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.goBack();
+            },
+          },
+        ]);
+      }
 
       setLoading(false);
-      Alert.alert('Success', 'Property added successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
-    }, 1500);
+    } catch (err) {
+      setLoading(false);
+      console.error('Error adding property:', err);
+      Alert.alert('Error', err.message || 'Failed to add property. Please try again.');
+    }
   };
 
   const removeImage = (index) => {
@@ -198,7 +277,7 @@ const AddPropertyScreen = ({ navigation }) => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Add Property</Text>
+        <Text style={styles.title}>{isEditing ? 'Edit Property' : 'Add Property'}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -245,6 +324,7 @@ const AddPropertyScreen = ({ navigation }) => {
             <TextInput
               style={[styles.input, focusedInput === 'name' && styles.inputFocused]}
               placeholder="Enter property name"
+              placeholderTextColor={colors.textLight}
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
               onFocus={() => setFocusedInput('name')}
@@ -282,6 +362,7 @@ const AddPropertyScreen = ({ navigation }) => {
             <TextInput
               style={[styles.input, focusedInput === 'location' && styles.inputFocused]}
               placeholder="Enter location name or address"
+              placeholderTextColor={colors.textLight}
               value={formData.location}
               onChangeText={(text) => setFormData({ ...formData, location: text })}
               onFocus={() => setFocusedInput('location')}
@@ -307,6 +388,7 @@ const AddPropertyScreen = ({ navigation }) => {
             <TextInput
               style={[styles.input, focusedInput === 'price' && styles.inputFocused]}
               placeholder="Enter price"
+              placeholderTextColor={colors.textLight}
               value={formData.price}
               onChangeText={(text) => setFormData({ ...formData, price: text })}
               keyboardType="numeric"
@@ -326,6 +408,7 @@ const AddPropertyScreen = ({ navigation }) => {
               <TextInput
                 style={[styles.input, focusedInput === 'beds' && styles.inputFocused]}
                 placeholder="0"
+                placeholderTextColor={colors.textLight}
                 value={formData.beds}
                 onChangeText={(text) => setFormData({ ...formData, beds: text })}
                 keyboardType="numeric"
@@ -338,6 +421,7 @@ const AddPropertyScreen = ({ navigation }) => {
               <TextInput
                 style={[styles.input, focusedInput === 'baths' && styles.inputFocused]}
                 placeholder="0"
+                placeholderTextColor={colors.textLight}
                 value={formData.baths}
                 onChangeText={(text) => setFormData({ ...formData, baths: text })}
                 keyboardType="numeric"
@@ -350,6 +434,7 @@ const AddPropertyScreen = ({ navigation }) => {
               <TextInput
                 style={[styles.input, focusedInput === 'sqft' && styles.inputFocused]}
                 placeholder="0"
+                placeholderTextColor={colors.textLight}
                 value={formData.sqft}
                 onChangeText={(text) => setFormData({ ...formData, sqft: text })}
                 keyboardType="numeric"
@@ -364,6 +449,7 @@ const AddPropertyScreen = ({ navigation }) => {
             <TextInput
               style={[styles.input, styles.textArea, focusedInput === 'description' && styles.inputFocused]}
               placeholder="Describe your property..."
+              placeholderTextColor={colors.textLight}
               value={formData.description}
               onChangeText={(text) => setFormData({ ...formData, description: text })}
               multiline
@@ -374,15 +460,36 @@ const AddPropertyScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Facilities (comma separated)</Text>
-            <TextInput
-              style={[styles.input, focusedInput === 'facilities' && styles.inputFocused]}
-              placeholder="e.g. Pool, Gym, Parking"
-              value={formData.facilities}
-              onChangeText={(text) => setFormData({ ...formData, facilities: text })}
-              onFocus={() => setFocusedInput('facilities')}
-              onBlur={() => setFocusedInput(null)}
-            />
+            <Text style={styles.label}>Facilities</Text>
+            <View style={styles.facilitiesGrid}>
+              {availableFacilities.map((facility) => (
+                <TouchableOpacity
+                  key={facility.id}
+                  style={[
+                    styles.facilityChip,
+                    selectedFacilities.includes(facility.name) && styles.facilityChipSelected,
+                  ]}
+                  onPress={() => toggleFacility(facility.name)}
+                >
+                  <Ionicons
+                    name={selectedFacilities.includes(facility.name) ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={18}
+                    color={selectedFacilities.includes(facility.name) ? colors.primary : colors.textSecondary}
+                  />
+                  <Text style={[
+                    styles.facilityChipText,
+                    selectedFacilities.includes(facility.name) && styles.facilityChipTextSelected,
+                  ]}>
+                    {facility.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {selectedFacilities.length > 0 && (
+              <Text style={styles.selectedCount}>
+                {selectedFacilities.length} facility{selectedFacilities.length !== 1 ? 'ies' : 'y'} selected
+              </Text>
+            )}
           </View>
         </View>
 
@@ -569,6 +676,40 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  facilitiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  facilityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  facilityChipSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  facilityChipText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  facilityChipTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  selectedCount: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
   },
   pickerContainer: {
     flexDirection: 'row',
