@@ -63,7 +63,7 @@ const NotificationsScreen = ({ navigation }) => {
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'booking':
-        return 'calendar-check';
+        return 'calendar';
       case 'message':
         return 'chatbubble';
       case 'price':

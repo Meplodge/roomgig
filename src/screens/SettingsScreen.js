@@ -166,6 +166,12 @@ const SettingsScreen = ({ navigation }) => {
       title: 'Account',
       items: [
         {
+          icon: 'bar-chart-outline',
+          label: 'Analytics',
+          type: 'navigation',
+          route: 'Insights',
+        },
+        {
           icon: 'lock-closed-outline',
           label: 'Change Password',
           type: 'navigation',

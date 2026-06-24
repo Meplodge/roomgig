@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -127,12 +128,7 @@ const LoginScreen = ({ navigation }) => {
             activeOpacity={0.9}
           >
             <View style={styles.googleIcon}>
-              <View style={styles.googleLogo}>
-                <View style={[styles.googleGPart, { backgroundColor: '#4285F4' }]} />
-                <View style={[styles.googleGPart, { backgroundColor: '#EA4335', left: 8 }]} />
-                <View style={[styles.googleGPart, { backgroundColor: '#FBBC05', top: 8 }]} />
-                <View style={[styles.googleGPart, { backgroundColor: '#34A853', left: 8, top: 8 }]} />
-              </View>
+              <Image source={require('../../assets/google.png')} style={styles.googleLogoImage} />
             </View>
             <Text style={styles.googleButtonText}>Sign in with Google</Text>
           </TouchableOpacity>
@@ -222,16 +218,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  googleLogo: {
-    width: 20,
-    height: 20,
-    position: 'relative',
-  },
-  googleGPart: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 2,
+  googleLogoImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
   googleButtonText: { color: colors.surface, fontSize: 16, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },

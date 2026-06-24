@@ -13,6 +13,7 @@ const AuthContext = createContext(null);
 
 const STORAGE_KEY = '@realestate_user';
 const ONBOARDING_KEY = '@realestate_onboarding_completed';
+const FIRST_LOGIN_KEY = '@realestate_first_login_completed';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -20,6 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [emailConfirmed, setEmailConfirmed] = useState(true);
+  const [needsProfileUpdate, setNeedsProfileUpdate] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -60,11 +62,20 @@ export const AuthProvider = ({ children }) => {
         .eq('id', userId)
         .single();
 
+      console.log('Profile data loaded:', data);
+      console.log('Profile avatar_url:', data?.avatar_url);
+
       if (data && !error) {
         setProfile(data);
-        // Update user avatar if profile has avatar_url
-        if (data.avatar_url && user) {
-          setUser(prev => ({ ...prev, avatar: data.avatar_url }));
+        // Always update user avatar from profile (even if profile avatar is null, to clear old avatar)
+        console.log('Updating user avatar from profile:', data.avatar_url);
+        setUser(prev => ({ ...prev, avatar: data.avatar_url }));
+        
+        // Check if this is first login and profile needs update
+        const firstLoginCompleted = await AsyncStorage.getItem(FIRST_LOGIN_KEY);
+        if (!firstLoginCompleted) {
+          const needsUpdate = !data.phone || !data.full_name || data.full_name === data.email?.split('@')[0];
+          setNeedsProfileUpdate(needsUpdate);
         }
       }
     } catch (e) {
@@ -105,6 +116,15 @@ export const AuthProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
       setOnboardingCompleted(true);
+    } catch (e) {
+      // ignore write errors
+    }
+  };
+
+  const markProfileComplete = async () => {
+    try {
+      await AsyncStorage.setItem(FIRST_LOGIN_KEY, 'true');
+      setNeedsProfileUpdate(false);
     } catch (e) {
       // ignore write errors
     }
@@ -230,6 +250,8 @@ export const AuthProvider = ({ children }) => {
         onboardingCompleted,
         completeOnboarding,
         loadProfile,
+        needsProfileUpdate,
+        markProfileComplete,
       }}
     >
       {children}

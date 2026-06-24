@@ -575,13 +575,13 @@ export const getFavorites = async (userId) => {
   return data;
 };
 
-export const toggleFavorite = async (userId, propertyId) => {
+export const toggleFavorite = async (userId, itemId, isRoommate = false) => {
   // Check if already favorited
   const { data: existing } = await supabase
     .from('favorites')
     .select('*')
     .eq('user_id', userId)
-    .eq('property_id', propertyId)
+    .eq(isRoommate ? 'roommate_listing_id' : 'property_id', itemId)
     .single();
 
   if (existing) {
@@ -599,7 +599,7 @@ export const toggleFavorite = async (userId, propertyId) => {
       .from('favorites')
       .insert({
         user_id: userId,
-        property_id: propertyId
+        [isRoommate ? 'roommate_listing_id' : 'property_id']: itemId
       });
     
     if (error) throw error;
@@ -984,6 +984,47 @@ export const sendMessage = async (conversationId, senderId, content) => {
   return data;
 };
 
+export const createConversation = async (userId, otherUserId, propertyId = null) => {
+  // Check if conversation already exists
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('other_user_id', otherUserId)
+    .eq('property_id', propertyId)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  // Create new conversation
+  const { data, error } = await supabase
+    .from('conversations')
+    .insert({
+      user_id: userId,
+      other_user_id: otherUserId,
+      property_id: propertyId,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Track property inquiry if property_id exists
+  if (propertyId) {
+    await supabase
+      .from('property_inquiries')
+      .insert({
+        property_id: propertyId,
+        user_id: userId,
+        conversation_id: data.id,
+      });
+  }
+
+  return data;
+};
+
 export const deleteMessageFromDB = async (messageId) => {
   const { error } = await supabase
     .from('messages')
@@ -1005,6 +1046,89 @@ export const getNotifications = async (userId) => {
 
   if (error) throw error;
   return data;
+};
+
+// Analytics API
+export const trackPropertyView = async (propertyId, userId = null) => {
+  const { data, error } = await supabase
+    .from('property_views')
+    .insert({
+      property_id: propertyId,
+      user_id: userId,
+      session_id: userId ? null : 'anonymous',
+    });
+
+  if (error) {
+    console.error('Error tracking property view:', error);
+  }
+  return data;
+};
+
+export const getPropertyAnalytics = async (propertyId) => {
+  const { data, error } = await supabase
+    .from('properties')
+    .select('view_count, favorite_count, inquiry_count, rating_avg, review_count')
+    .eq('id', propertyId)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const getUserPropertyAnalytics = async (userId) => {
+  const { data, error } = await supabase
+    .from('properties')
+    .select('id, title, view_count, favorite_count, inquiry_count, rating_avg, review_count, status')
+    .eq('host_id', userId)
+    .is('deleted_at', null)
+    .order('view_count', { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const getAnalyticsSummary = async (userId) => {
+  // Get user's properties
+  const { data: properties, error: propsError } = await supabase
+    .from('properties')
+    .select('id, view_count, favorite_count, inquiry_count, rating_avg, review_count, status')
+    .eq('host_id', userId)
+    .is('deleted_at', null);
+
+  if (propsError) throw propsError;
+
+  // Get user's bookings
+  const { data: bookings, error: bookingsError } = await supabase
+    .from('bookings')
+    .select('total_amount, created_at, status')
+    .eq('user_id', userId);
+
+  if (bookingsError) throw bookingsError;
+
+  // Calculate summary
+  const totalViews = properties.reduce((sum, p) => sum + (p.view_count || 0), 0);
+  const totalFavorites = properties.reduce((sum, p) => sum + (p.favorite_count || 0), 0);
+  const totalInquiries = properties.reduce((sum, p) => sum + (p.inquiry_count || 0), 0);
+  const totalBookings = bookings.length;
+  const totalRevenue = bookings
+    .filter(b => b.status === 'completed')
+    .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+  const averageRating = properties.length > 0
+    ? properties.reduce((sum, p) => sum + (p.rating_avg || 0), 0) / properties.length
+    : 0;
+  const activeProperties = properties.filter(p => p.status === 'active').length;
+
+  return {
+    totalViews,
+    totalFavorites,
+    totalInquiries,
+    totalBookings,
+    totalRevenue,
+    averageRating: Math.round(averageRating * 10) / 10,
+    activeProperties,
+    properties,
+    bookings,
+  };
 };
 
 export const markNotificationAsRead = async (notificationId) => {

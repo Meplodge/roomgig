@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,23 +9,55 @@ import {
   Alert,
   Modal,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../constants/colors';
+import { useAppData } from '../context/AppDataContext';
 
 const { width: windowWidth } = Dimensions.get('window');
 
 const RoommateDetailsScreen = ({ route, navigation }) => {
   const { listing } = route.params || {};
+  const { isFavorite, toggleFavorite } = useAppData();
   const [selectedTab, setSelectedTab] = useState('About');
   const [requestModalVisible, setRequestModalVisible] = useState(false);
   const [messageModalVisible, setMessageModalVisible] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [heartScale] = useState(new Animated.Value(1));
   const scrollRef = useRef(null);
+  const favorite = isFavorite(listing?.id);
+
+  // Auto-close success modal after 2 seconds
+  useEffect(() => {
+    if (successModalVisible) {
+      const timer = setTimeout(() => {
+        setSuccessModalVisible(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [successModalVisible]);
 
   const tabs = ['About', 'Personal Info', 'Lifestyle', 'Amenities'];
+
+  const handleFavorite = () => {
+    Animated.sequence([
+      Animated.timing(heartScale, {
+        toValue: 1.3,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heartScale, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    toggleFavorite(listing?.id, true); // true for roommate listing
+  };
 
   const handleContact = () => {
     setMessageModalVisible(true);
@@ -42,7 +74,7 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
 
   const confirmRequest = () => {
     setRequestModalVisible(false);
-    Alert.alert('Success', 'Your request has been sent successfully!');
+    setSuccessModalVisible(true);
   };
 
   return (
@@ -81,9 +113,15 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.favoriteButton}>
+          <TouchableOpacity style={styles.favoriteButton} onPress={handleFavorite}>
             <View style={styles.favoriteButtonInner}>
-              <Ionicons name="heart-outline" size={22} color={colors.text} />
+              <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                <Ionicons 
+                  name={favorite ? 'heart' : 'heart-outline'} 
+                  size={22} 
+                  color={favorite ? colors.error : colors.text} 
+                />
+              </Animated.View>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.shareButton}>
@@ -370,6 +408,28 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
                 <Text style={styles.modalConfirmText}>Message</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={successModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSuccessModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModalContent}>
+            <View style={styles.successIconContainer}>
+              <View style={styles.successIconCircle}>
+                <Ionicons name="checkmark" size={40} color={colors.surface} />
+              </View>
+            </View>
+            <Text style={styles.successTitle}>Request Sent!</Text>
+            <Text style={styles.successMessage}>
+              Your roommate request has been sent successfully to {listing.postedBy.name}. They will be notified and can respond to your request.
+            </Text>
           </View>
         </View>
       </Modal>
@@ -777,6 +837,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.surface,
+  },
+  successModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 32,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
   },
 });
 

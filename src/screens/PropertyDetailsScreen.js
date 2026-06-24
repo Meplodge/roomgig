@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import ImageCarousel from '../components/ImageCarousel';
-import { getPropertyReviews, createReview } from '../services/supabaseApi';
+import { getPropertyReviews, createReview, trackPropertyView } from '../services/supabaseApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,10 +38,14 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
   const [currentRating, setCurrentRating] = useState(property?.rating || property?.rating_avg || 0);
   const [currentReviewCount, setCurrentReviewCount] = useState(property?.reviews || property?.review_count || 0);
 
-  // Fetch reviews from database
+  // Fetch reviews from database and track property view
   useEffect(() => {
     fetchReviews();
-  }, [property?.id]);
+    // Track property view when user opens details
+    if (property?.id) {
+      trackPropertyView(property.id, user?.id || null);
+    }
+  }, [property?.id, user?.id]);
 
   const fetchReviews = async () => {
     if (!property?.id) return;

@@ -33,7 +33,7 @@ const FILTERS_KEY = '@realestate_filters';
 
 const HomeScreen = ({ navigation }) => {
   const { propertiesList, loading } = useAppData();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const firstName = (user?.name || 'there').split(' ')[0];
   const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,8 +202,10 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.headerLeft}>
             <View style={styles.avatarContainer}>
               <Image
-                source={{ uri: user?.avatar || 'https://randomuser.me/api/portraits/men/32.jpg' }}
+                source={{ uri: profile?.avatar_url || user?.avatar }}
                 style={styles.avatar}
+                onLoad={() => console.log('Avatar loaded successfully:', profile?.avatar_url || user?.avatar)}
+                onError={(e) => console.log('Avatar load error:', e.nativeEvent.error, 'URI:', profile?.avatar_url || user?.avatar)}
               />
               <LinearGradient
                 colors={['rgba(31, 77, 63, 0.1)', 'rgba(31, 77, 63, 0.3)']}

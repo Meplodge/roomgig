@@ -108,12 +108,12 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
-  const isFavorite = (id) => favorites.includes(id);
+  const isFavorite = (id, isRoommate = false) => favorites.includes(id);
 
-  const toggleFavorite = async (id) => {
+  const toggleFavorite = async (id, isRoommate = false) => {
     if (!user) return;
     try {
-      const isNowFavorite = await toggleFavoriteApi(user.id, id);
+      const isNowFavorite = await toggleFavoriteApi(user.id, id, isRoommate);
       const next = isNowFavorite
         ? [...favorites, id]
         : favorites.filter((f) => f !== id);

@@ -110,6 +110,8 @@ const ProfileScreen = ({ navigation }) => {
               <Image
                 source={{ uri: avatar }}
                 style={styles.avatar}
+                onLoad={() => console.log('Profile avatar loaded successfully:', avatar)}
+                onError={(e) => console.log('Profile avatar load error:', e.nativeEvent.error, 'URI:', avatar)}
               />
             ) : (
               <View style={styles.avatarPlaceholder}>

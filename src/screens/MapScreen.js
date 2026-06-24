@@ -203,15 +203,26 @@ const MapScreen = ({ navigation, route }) => {
       
       console.log('Directions received:', directions);
       console.log('Route coordinates length:', directions.coordinates.length);
-      setRouteCoordinates(directions.coordinates);
+      
+      // Filter out invalid coordinates (NaN, null, undefined)
+      const validCoordinates = directions.coordinates.filter(
+        coord => coord && 
+                 typeof coord.latitude === 'number' && 
+                 !isNaN(coord.latitude) &&
+                 typeof coord.longitude === 'number' && 
+                 !isNaN(coord.longitude)
+      );
+      
+      console.log('Valid coordinates after filtering:', validCoordinates.length);
+      setRouteCoordinates(validCoordinates);
       setRouteInfo({
         distance: directions.distance,
         duration: directions.duration,
       });
 
       // Fit map to show the entire route
-      if (mapRef.current && directions.coordinates.length > 0) {
-        const bounds = directions.coordinates.reduce(
+      if (mapRef.current && validCoordinates.length > 0) {
+        const bounds = validCoordinates.reduce(
           (acc, coord) => ({
             north: Math.max(acc.north, coord.latitude),
             south: Math.min(acc.south, coord.latitude),
@@ -219,14 +230,14 @@ const MapScreen = ({ navigation, route }) => {
             west: Math.min(acc.west, coord.longitude),
           }),
           {
-            north: directions.coordinates[0].latitude,
-            south: directions.coordinates[0].latitude,
-            east: directions.coordinates[0].longitude,
-            west: directions.coordinates[0].longitude,
+            north: validCoordinates[0].latitude,
+            south: validCoordinates[0].latitude,
+            east: validCoordinates[0].longitude,
+            west: validCoordinates[0].longitude,
           }
         );
 
-        mapRef.current.fitToCoordinates(directions.coordinates, {
+        mapRef.current.fitToCoordinates(validCoordinates, {
           edgePadding: { top: 100, right: 50, bottom: 300, left: 50 },
           animated: true,
         });

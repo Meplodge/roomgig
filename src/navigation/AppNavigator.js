@@ -37,13 +37,14 @@ import UserProfileScreen from '../screens/UserProfileScreen';
 import ViewAllRoommatesScreen from '../screens/ViewAllRoommatesScreen';
 import MyRoommateListingsScreen from '../screens/MyRoommateListingsScreen';
 import MyPropertyListingsScreen from '../screens/MyPropertyListingsScreen';
+import ProfileUpdatePrompt from '../screens/ProfileUpdatePrompt';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
-  const { isAuthenticated, loading, onboardingCompleted } = useAuth();
+  const { isAuthenticated, loading, onboardingCompleted, needsProfileUpdate } = useAuth();
 
   if (loading) {
     return (
@@ -100,6 +101,7 @@ const AppNavigator = () => {
           </>
         )}
       </Stack.Navigator>
+      <ProfileUpdatePrompt visible={isAuthenticated && needsProfileUpdate} onClose={() => {}} />
     </NavigationContainer>
   );
 };
