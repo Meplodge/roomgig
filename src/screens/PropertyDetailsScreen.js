@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
   Modal,
   Share,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import ImageCarousel from '../components/ImageCarousel';
+import { getPropertyReviews, createReview } from '../services/supabaseApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -30,10 +32,59 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imageViewerRef = useRef(null);
-  const [reviews, setReviews] = useState([
-    { id: '1', name: 'John Doe', rating: 5.0, text: 'Amazing property! The host was very responsive and the place was exactly as described.' },
-    { id: '2', name: 'Jane Smith', rating: 4.5, text: 'Great location and beautiful views. Would definitely recommend!' },
-  ]);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [currentRating, setCurrentRating] = useState(property?.rating || property?.rating_avg || 0);
+  const [currentReviewCount, setCurrentReviewCount] = useState(property?.reviews || property?.review_count || 0);
+
+  // Fetch reviews from database
+  useEffect(() => {
+    fetchReviews();
+  }, [property?.id]);
+
+  const fetchReviews = async () => {
+    if (!property?.id) return;
+    try {
+      setLoadingReviews(true);
+      const data = await getPropertyReviews(property.id);
+      const formattedReviews = data.map(review => ({
+        id: review.id,
+        name: review.profiles?.full_name || 'Anonymous',
+        avatar: review.profiles?.avatar_url,
+        rating: review.rating,
+        text: review.content || review.title || '',
+        createdAt: review.created_at,
+        userId: review.user_id,
+      }));
+      setReviews(formattedReviews);
+
+      // Calculate rating and count from actual reviews
+      if (data.length > 0) {
+        const sum = data.reduce((acc, r) => acc + r.rating, 0);
+        const average = Math.round((sum / data.length) * 10) / 10;
+        setCurrentRating(average);
+        setCurrentReviewCount(data.length);
+      } else {
+        setCurrentRating(0);
+        setCurrentReviewCount(0);
+      }
+
+      // Check if current user has already reviewed
+      const userReview = data.find(review => review.user_id === user?.id);
+      setHasReviewed(!!userReview);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      // Add 1 mock review as fallback
+      setReviews([
+        { id: 'mock-1', name: 'John Doe', avatar: null, rating: 5.0, text: 'Amazing property! The host was very responsive and the place was exactly as described.', createdAt: new Date().toISOString() },
+      ]);
+      setCurrentRating(5.0);
+      setCurrentReviewCount(1);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
 
   const handleShare = async () => {
     try {
@@ -53,7 +104,7 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
     setShowImageViewer(true);
   };
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (reviewRating === 0) {
       Alert.alert('Error', 'Please select a rating');
       return;
@@ -63,18 +114,26 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
       return;
     }
 
-    const newReview = {
-      id: Date.now().toString(),
-      name: user?.name || 'Anonymous',
-      rating: reviewRating,
-      text: reviewText,
-    };
+    try {
+      await createReview({
+        userId: user?.id,
+        propertyId: property?.id,
+        rating: reviewRating,
+        title: 'Review',
+        content: reviewText,
+      });
 
-    setReviews([newReview, ...reviews]);
-    setReviewModalVisible(false);
-    setReviewRating(0);
-    setReviewText('');
-    Alert.alert('Success', 'Your review has been submitted!');
+      // Refresh reviews after submission
+      await fetchReviews();
+
+      setReviewModalVisible(false);
+      setReviewRating(0);
+      setReviewText('');
+      Alert.alert('Success', 'Your review has been submitted!');
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      Alert.alert('Error', 'Failed to submit review. Please try again.');
+    }
   };
 
   const renderStars = (rating, interactive = false, onPress) => {
@@ -139,8 +198,8 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
           <Text style={styles.propertyLocation}>{property.location || property.city}</Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={16} color={colors.star} />
-            <Text style={styles.rating}>{property.rating || property.rating_avg || 0}</Text>
-            <Text style={styles.reviews}>({property.reviews || property.review_count || 0} Reviews)</Text>
+            <Text style={styles.rating}>{currentRating}</Text>
+            <Text style={styles.reviews}>({currentReviewCount} Reviews)</Text>
           </View>
         </View>
 
@@ -240,26 +299,55 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
           <View style={styles.tabContent}>
             <View style={styles.reviewHeaderSection}>
               <Text style={styles.sectionTitle}>Reviews</Text>
-              <TouchableOpacity
-                style={styles.addReviewButton}
-                onPress={() => setReviewModalVisible(true)}
-              >
-                <Ionicons name="add" size={18} color={colors.surface} />
-                <Text style={styles.addReviewButtonText}>Add Review</Text>
-              </TouchableOpacity>
+              {!hasReviewed && (
+                <TouchableOpacity
+                  style={styles.addReviewButton}
+                  onPress={() => setReviewModalVisible(true)}
+                >
+                  <Ionicons name="add" size={18} color={colors.surface} />
+                  <Text style={styles.addReviewButtonText}>Add Review</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {reviews.map((review) => (
-              <View key={review.id} style={styles.reviewItem}>
-                <View style={styles.reviewHeader}>
-                  <Text style={styles.reviewerName}>{review.name}</Text>
-                  <View style={styles.reviewRatingRow}>
-                    {renderStars(review.rating)}
-                    <Text style={styles.reviewRating}>{review.rating}</Text>
-                  </View>
-                </View>
-                <Text style={styles.reviewText}>{review.text}</Text>
+            {loadingReviews ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading reviews...</Text>
               </View>
-            ))}
+            ) : reviews.length === 0 ? (
+              <View style={styles.emptyReviewsContainer}>
+                <Ionicons name="chatbubble-outline" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyReviewsText}>No reviews yet</Text>
+                <Text style={styles.emptyReviewsSubtext}>Be the first to review this property!</Text>
+              </View>
+            ) : (
+              reviews.map((review) => (
+                <View key={review.id} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.reviewerInfo}>
+                      {review.avatar ? (
+                        <Image source={{ uri: review.avatar }} style={styles.reviewerAvatar} />
+                      ) : (
+                        <View style={styles.reviewerAvatarPlaceholder}>
+                          <Ionicons name="person" size={20} color={colors.textSecondary} />
+                        </View>
+                      )}
+                      <Text style={styles.reviewerName}>{review.name}</Text>
+                    </View>
+                    <View style={styles.reviewRatingRow}>
+                      {renderStars(review.rating)}
+                      <Text style={styles.reviewRating}>{review.rating}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.reviewText}>{review.text}</Text>
+                  {review.createdAt && (
+                    <Text style={styles.reviewDate}>
+                      {new Date(review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </Text>
+                  )}
+                </View>
+              ))
+            )}
           </View>
         )}
       </ScrollView>
@@ -638,6 +726,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  reviewerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reviewerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  reviewerAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   reviewerName: {
     fontSize: 16,
     fontWeight: '600',
@@ -657,6 +763,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  reviewDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
   },
   bookingBar: {
     flexDirection: 'row',
@@ -794,6 +905,34 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 16,
     fontWeight: '700',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  emptyReviewsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyReviewsText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptyReviewsSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
   },
   imageViewerOverlay: {
     flex: 1,

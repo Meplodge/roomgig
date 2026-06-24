@@ -233,6 +233,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     flex: 1,
+    numberOfLines: 1,
+    ellipsizeMode: 'tail',
   },
   locationRow: {
     flexDirection: 'row',

@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../constants/colors';
 import FilterButton from '../components/FilterButton';
-import PropertyCardSkeleton from '../components/PropertyCardSkeleton';
 import BottomNavBar from '../components/BottomNavBar';
 import { getRoommateListings } from '../services/supabaseApi';
 
@@ -153,15 +152,14 @@ const RoommateFinderScreen = ({ navigation }) => {
           contentContainerStyle={styles.listingsContent}
         >
           {loading ? (
-            <>
-              <PropertyCardSkeleton />
-              <PropertyCardSkeleton />
-              <PropertyCardSkeleton />
-            </>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Loading roommates...</Text>
+            </View>
           ) : filteredListings.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyEmoji}>🏠</Text>
-              <Text style={styles.emptyTitle}>No Listings Found</Text>
+              <Text style={styles.emptyTitle}>No roommates found</Text>
               <Text style={styles.emptyMessage}>
                 {searchQuery || selectedType !== 'All'
                   ? 'Try adjusting your search or filters.'
@@ -423,6 +421,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.surface,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   sectionTitle: {
     fontSize: 15,

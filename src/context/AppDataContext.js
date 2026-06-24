@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
-import { getProperties, getFavorites, toggleFavorite as toggleFavoriteApi, getBookings, createBooking, createProperty as createPropertyApi } from '../services/supabaseApi';
+import { getProperties, getFavorites, toggleFavorite as toggleFavoriteApi, getBookings, createBooking, createProperty as createPropertyApi, testConnection } from '../services/supabaseApi';
 
 const AppDataContext = createContext(null);
 
@@ -39,6 +39,8 @@ export const AppDataProvider = ({ children }) => {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    // Test database connection on startup
+    testConnection();
     loadFavorites();
     loadBookings();
     setHydrated(true);

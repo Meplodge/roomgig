@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,47 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAppData } from '../context/AppDataContext';
-import { deleteProperty } from '../services/supabaseApi';
+import { deleteProperty, getUserProperties } from '../services/supabaseApi';
 import PropertyCard from '../components/PropertyCard';
 import { useAuth } from '../context/AuthContext';
 
 const MyPropertyListingsScreen = ({ navigation }) => {
-  const { propertiesList, refreshProperties } = useAppData();
+  const { refreshProperties } = useAppData();
   const { user } = useAuth();
+  const [userProperties, setUserProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
+
+  useEffect(() => {
+    loadUserProperties();
+  }, [user]);
+
+  const loadUserProperties = async () => {
+    if (!user) {
+      setUserProperties([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = await getUserProperties(user.id);
+      setUserProperties(data);
+    } catch (error) {
+      console.error('Error loading user properties:', error);
+      Alert.alert('Error', 'Failed to load your properties');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDelete = (propertyId, propertyName) => {
     setPropertyToDelete({ id: propertyId, name: propertyName });
@@ -34,7 +60,7 @@ const MyPropertyListingsScreen = ({ navigation }) => {
     setDeleteModalVisible(false);
     try {
       await deleteProperty(propertyToDelete.id);
-      await refreshProperties();
+      await loadUserProperties();
       Alert.alert('Success', 'Property deleted successfully');
     } catch (error) {
       Alert.alert('Error', 'Failed to delete property');
@@ -70,7 +96,12 @@ const MyPropertyListingsScreen = ({ navigation }) => {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
       >
-        {propertiesList.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading your properties...</Text>
+          </View>
+        ) : userProperties.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="home-outline" size={64} color={colors.textSecondary} />
             <Text style={styles.emptyTitle}>No Properties Yet</Text>
@@ -87,9 +118,9 @@ const MyPropertyListingsScreen = ({ navigation }) => {
         ) : (
           <>
             <Text style={styles.sectionTitle}>
-              {propertiesList.length} {propertiesList.length === 1 ? 'property' : 'properties'}
+              {userProperties.length} {userProperties.length === 1 ? 'property' : 'properties'}
             </Text>
-            {propertiesList.map((property) => (
+            {userProperties.map((property) => (
               <View key={property.id} style={styles.propertyCardWrapper}>
                 <PropertyCard
                   property={property}
@@ -363,6 +394,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.surface,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    marginTop: 16,
   },
 });
 

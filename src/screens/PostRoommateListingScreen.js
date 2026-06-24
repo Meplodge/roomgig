@@ -11,6 +11,7 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +27,7 @@ const { width: windowWidth } = Dimensions.get('window');
 const PostRoommateListingScreen = ({ navigation, route }) => {
   const { listing, isEdit } = route.params || {};
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [title, setTitle] = useState(listing?.title || '');
   const [type, setType] = useState(listing?.type || 'Apartment');
@@ -34,7 +36,7 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
   const [availableDate, setAvailableDate] = useState(listing?.available || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [date, setDate] = useState(new Date());
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(listing?.description || '');
   const [selectedPreferences, setSelectedPreferences] = useState(listing?.preferences || []);
   const [selectedAmenities, setSelectedAmenities] = useState(listing?.amenities || []);
   const [images, setImages] = useState(listing?.images || []);
@@ -46,7 +48,7 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
   const [sleepSchedule, setSleepSchedule] = useState(listing?.sleepSchedule || 'flexible');
   const [workSchedule, setWorkSchedule] = useState(listing?.workSchedule || 'office');
   const [dietaryPreference, setDietaryPreference] = useState(listing?.dietaryPreference || 'omnivore');
-  const [languages, setLanguages] = useState(listing?.languages || '');
+  const [languages, setLanguages] = useState(Array.isArray(listing?.languages) ? listing.languages.join(', ') : (listing?.languages || ''));
   const [socialStyle, setSocialStyle] = useState(listing?.socialStyle || 'ambivert');
   const [cleanlinessLevel, setCleanlinessLevel] = useState(listing?.cleanlinessLevel || 'moderate');
   
@@ -56,7 +58,7 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
   const [cookingHabits, setCookingHabits] = useState(listing?.cookingHabits || 'sometimes');
   const [alcoholConsumption, setAlcoholConsumption] = useState(listing?.alcoholConsumption || 'social');
   const [workEnvironment, setWorkEnvironment] = useState(listing?.workEnvironment || 'moderate_noise');
-  const [dietaryAllergies, setDietaryAllergies] = useState(listing?.dietaryAllergies || '');
+  const [dietaryAllergies, setDietaryAllergies] = useState(Array.isArray(listing?.dietaryAllergies) ? listing.dietaryAllergies.join(', ') : (listing?.dietaryAllergies || ''));
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -67,6 +69,17 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
     };
     getCurrentUser();
   }, []);
+
+  // Auto-close success modal after 2 seconds
+  useEffect(() => {
+    if (showSuccessModal) {
+      const timer = setTimeout(() => {
+        setShowSuccessModal(false);
+        navigation.goBack();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessModal, navigation]);
 
   // Redirect to login if user is not authenticated
   if (!currentUser) {
@@ -299,12 +312,10 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
         await createRoommateListing(listingData, currentUser.id);
       }
       
-      const message = isEdit 
-        ? 'Your roommate listing has been updated!' 
+      const message = isEdit
+        ? 'Your roommate listing has been updated!'
         : 'Your roommate listing has been posted!';
-      Alert.alert('Success', message, [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Error posting roommate listing:', error);
       Alert.alert('Error', 'Failed to post listing. Please try again.');
@@ -763,6 +774,30 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContent}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
+            </View>
+            <Text style={styles.successTitle}>
+              {isEdit ? 'Listing Updated!' : 'Listing Posted!'}
+            </Text>
+            <Text style={styles.successMessage}>
+              {isEdit
+                ? 'Your roommate listing has been successfully updated.'
+                : 'Your roommate listing has been successfully posted.'}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1012,6 +1047,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.surface,
+  },
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    width: '85%',
+    maxWidth: 400,
+  },
+  successIconContainer: {
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
 

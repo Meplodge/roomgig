@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../constants/colors';
 import { propertyTypes } from '../data/mockData';
 import PropertyCard from '../components/PropertyCard';
@@ -27,6 +28,8 @@ import { useAppData } from '../context/AppDataContext';
 import { filterProperties, countActiveFilters } from '../utils/filterProperties';
 import { parseSearchQuery, getSearchSuggestions } from '../utils/aiSearch';
 import { sendNotification } from '../services/notificationService';
+
+const FILTERS_KEY = '@realestate_filters';
 
 const HomeScreen = ({ navigation }) => {
   const { propertiesList, loading } = useAppData();
@@ -44,7 +47,19 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     getCurrentLocation();
+    loadSavedFilters();
   }, []);
+
+  const loadSavedFilters = async () => {
+    try {
+      const savedFilters = await AsyncStorage.getItem(FILTERS_KEY);
+      if (savedFilters) {
+        setFilters(JSON.parse(savedFilters));
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+  };
 
   const getCurrentLocation = async () => {
     try {
@@ -80,12 +95,25 @@ const HomeScreen = ({ navigation }) => {
   });
   const activeCount = countActiveFilters(filters);
 
-  const setSelectedType = (type) => setFilters((f) => ({ ...f, type }));
+  const setSelectedType = (type) => {
+    const updatedFilters = { ...filters, type };
+    setFilters(updatedFilters);
+    saveFilters(updatedFilters);
+  };
   const selectedType = filters.type;
 
   const applyFilters = (next) => {
     setFilters(next);
     setFilterVisible(false);
+    saveFilters(next);
+  };
+
+  const saveFilters = async (filtersToSave) => {
+    try {
+      await AsyncStorage.setItem(FILTERS_KEY, JSON.stringify(filtersToSave));
+    } catch (error) {
+      console.error('Error saving filters:', error);
+    }
   };
 
   const onRefresh = async () => {
@@ -275,6 +303,7 @@ const HomeScreen = ({ navigation }) => {
               onAction={() => {
                 setFilters(defaultFilters);
                 setSearchQuery('');
+                saveFilters(defaultFilters);
               }}
             />
           ) : (
@@ -505,6 +534,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingHorizontal: 12,
     paddingTop: 12,
+    numberOfLines: 1,
+    ellipsizeMode: 'tail',
   },
   topPropertyPrice: {
     fontSize: 16,

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Animated,
   Modal,
+  Dimensions,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,11 +56,23 @@ const AddPropertyScreen = ({ navigation, route }) => {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [availableFacilities, setAvailableFacilities] = useState([]);
   const [selectedFacilities, setSelectedFacilities] = useState([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Load available facilities
   useEffect(() => {
     loadFacilities();
   }, []);
+
+  // Auto-close success modal after 2 seconds
+  useEffect(() => {
+    if (showSuccessModal) {
+      const timer = setTimeout(() => {
+        setShowSuccessModal(false);
+        navigation.goBack();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessModal, navigation]);
 
   const loadFacilities = async () => {
     try {
@@ -104,6 +117,10 @@ const AddPropertyScreen = ({ navigation, route }) => {
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
       });
+      // Load existing images
+      if (property.images && property.images.length > 0) {
+        setImages(property.images);
+      }
     }
   }, [isEditing, property]);
 
@@ -221,14 +238,7 @@ const AddPropertyScreen = ({ navigation, route }) => {
       if (isEditing) {
         await updateProperty(property.id, propertyData, user.id);
         await refreshProperties();
-        Alert.alert('Success', 'Property updated successfully', [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.goBack();
-            },
-          },
-        ]);
+        setShowSuccessModal(true);
       } else {
         await createProperty(propertyData, user.id);
         await refreshProperties();
@@ -557,6 +567,26 @@ const AddPropertyScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContent}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
+            </View>
+            <Text style={styles.successTitle}>Property Updated!</Text>
+            <Text style={styles.successMessage}>
+              Your property has been successfully updated.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -606,14 +636,16 @@ const styles = StyleSheet.create({
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
   imageWrapper: {
     position: 'relative',
+    width: (Dimensions.get('window').width - 40 - 16) / 3,
+    aspectRatio: 1,
   },
   uploadedImage: {
-    width: 100,
-    height: 100,
+    width: '100%',
+    height: '100%',
     borderRadius: 12,
   },
   removeImageButton: {
@@ -624,8 +656,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   addImageButton: {
-    width: 100,
-    height: 100,
+    width: (Dimensions.get('window').width - 40 - 16) / 3,
+    aspectRatio: 1,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.border,
@@ -860,6 +892,34 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+  },
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    width: '85%',
+    maxWidth: 400,
+  },
+  successIconContainer: {
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
 

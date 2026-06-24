@@ -17,7 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
-import { updateProfile } from '../services/supabaseApi';
+import { updateProfile, uploadProfileImage } from '../services/supabaseApi';
 
 const EditProfileScreen = ({ navigation }) => {
   const { user, profile, loadProfile } = useAuth();
@@ -297,6 +297,18 @@ const EditProfileScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
+      // Upload avatar to storage if it's a local URI
+      let avatarUrl = avatar;
+      if (avatar && !avatar.startsWith('http')) {
+        try {
+          avatarUrl = await uploadProfileImage(user.id, avatar);
+        } catch (uploadError) {
+          console.error('Avatar upload error:', uploadError);
+          Alert.alert('Warning', 'Profile image failed to upload, but other changes will be saved.');
+          avatarUrl = profile?.avatar_url || user?.avatar || null;
+        }
+      }
+
       // Map form data to database fields
       const profileUpdates = {
         full_name: formData.name,
@@ -311,6 +323,7 @@ const EditProfileScreen = ({ navigation }) => {
         company_name: formData.companyName || null,
         work_location: formData.workLocation || null,
         bio: formData.bio || null,
+        avatar_url: avatarUrl,
       };
 
       await updateProfile(user.id, profileUpdates);

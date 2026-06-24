@@ -1,8 +1,47 @@
 import { supabase } from '../utils/supabase';
 
+// Test database connection
+export const testConnection = async () => {
+  console.log('=== Testing Database Connection ===');
+  
+  // Test 1: Simple count query
+  const { count, error: countError } = await supabase
+    .from('properties')
+    .select('*', { count: 'exact', head: true });
+  
+  console.log('Total properties count:', count);
+  if (countError) {
+    console.error('Count query error:', countError);
+  }
+  
+  // Test 2: Active properties count
+  const { count: activeCount, error: activeError } = await supabase
+    .from('properties')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'active');
+  
+  console.log('Active properties count:', activeCount);
+  if (activeError) {
+    console.error('Active count error:', activeError);
+  }
+  
+  // Test 3: Check authentication
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log('User authenticated:', !!session);
+  console.log('User ID:', session?.user?.id);
+  
+  return { count, activeCount, authenticated: !!session };
+};
+
 // Properties API
 export const getProperties = async (filters = {}) => {
   console.log('Fetching properties with filters:', filters);
+  
+  // First, check if user is authenticated
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log('User authenticated:', !!session);
+  console.log('User ID:', session?.user?.id);
+  
   let query = supabase
     .from('properties')
     .select(`
@@ -10,7 +49,8 @@ export const getProperties = async (filters = {}) => {
       property_images(image_url, is_primary),
       property_facilities(facilities(name, icon))
     `)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .is('deleted_at', null);
 
   if (filters.type) {
     query = query.eq('type', filters.type);
@@ -35,10 +75,12 @@ export const getProperties = async (filters = {}) => {
 
   if (error) {
     console.error('Error fetching properties:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     throw error;
   }
 
   console.log('Properties fetched:', data?.length || 0);
+  console.log('Raw data sample:', data?.[0] ? JSON.stringify(data[0], null, 2).substring(0, 200) : 'No data');
 
   // Get ratings for all properties
   const propertyIds = data.map(p => p.id);
@@ -122,6 +164,67 @@ export const getPropertyById = async (propertyId) => {
     rating: averageRating,
     reviews: reviewCount,
   };
+};
+
+export const getUserProperties = async (userId) => {
+  console.log('Fetching properties for user:', userId);
+  let query = supabase
+    .from('properties')
+    .select(`
+      *,
+      property_images(image_url, is_primary),
+      property_facilities(facilities(name, icon))
+    `)
+    .eq('host_id', userId)
+    .is('deleted_at', null);
+
+  const { data, error } = await query.order('listed_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user properties:', error);
+    throw error;
+  }
+
+  console.log('User properties fetched:', data?.length || 0);
+
+  // Get ratings for all properties
+  const propertyIds = data.map(p => p.id);
+  const { data: ratingsData } = await supabase
+    .from('reviews')
+    .select('property_id, rating')
+    .in('property_id', propertyIds)
+    .eq('is_visible', true);
+
+  // Calculate average rating per property
+  const ratingsMap = {};
+  ratingsData?.forEach(review => {
+    if (!ratingsMap[review.property_id]) {
+      ratingsMap[review.property_id] = { sum: 0, count: 0 };
+    }
+    ratingsMap[review.property_id].sum += review.rating;
+    ratingsMap[review.property_id].count += 1;
+  });
+
+  // Transform data to match component expectations
+  return data.map(property => {
+    const rating = ratingsMap[property.id];
+    const averageRating = rating ? Math.round((rating.sum / rating.count) * 10) / 10 : 0;
+    const reviewCount = rating ? rating.count : 0;
+    
+    return {
+      ...property,
+      name: property.title,
+      beds: property.bedrooms,
+      baths: property.bathrooms,
+      sqft: property.square_feet,
+      location: property.city,
+      images: property.property_images?.map(img => img.image_url) || [],
+      image: property.property_images?.[0]?.image_url,
+      facilities: property.property_facilities?.map(pf => pf.facilities?.name).filter(Boolean) || [],
+      rating: averageRating,
+      reviews: reviewCount,
+    };
+  });
 };
 
 export const createProperty = async (propertyData, userId) => {
@@ -652,6 +755,8 @@ export const createRoommateListing = async (listingData, userId) => {
         alcohol_consumption: listingData.alcoholConsumption,
         work_environment: listingData.workEnvironment,
         dietary_allergies: listingData.dietaryAllergies,
+        preferences: listingData.preferences || [],
+        amenities: listingData.amenities || [],
         is_active: true,
       })
       .select()
@@ -714,8 +819,22 @@ export const getUserRoommateListings = async (userId) => {
     },
     images: listing.roommate_images?.map(img => img.image_url) || [],
     type: 'Apartment',
-    preferences: [],
-    amenities: [],
+    preferences: listing.preferences || [],
+    amenities: listing.amenities || [],
+    sleepSchedule: listing.sleep_schedule,
+    workSchedule: listing.work_schedule,
+    dietaryPreference: listing.dietary_preference,
+    languages: listing.languages || [],
+    socialStyle: listing.social_style,
+    cleanlinessLevel: listing.cleanliness_level,
+    guestPolicy: listing.guest_policy,
+    noiseTolerance: listing.noise_tolerance,
+    cookingHabits: listing.cooking_habits,
+    alcoholConsumption: listing.alcohol_consumption,
+    workEnvironment: listing.work_environment,
+    dietaryAllergies: listing.dietary_allergies,
+    available: listing.move_in_date,
+    price: listing.budget_min,
   }));
 };
 
@@ -788,6 +907,8 @@ export const updateRoommateListing = async (listingId, listingData, userId) => {
         alcohol_consumption: listingData.alcoholConsumption,
         work_environment: listingData.workEnvironment,
         dietary_allergies: listingData.dietaryAllergies,
+        preferences: listingData.preferences || [],
+        amenities: listingData.amenities || [],
       })
       .eq('id', listingId)
       .select()
@@ -932,6 +1053,40 @@ export const updateProfile = async (userId, updates) => {
 
   if (error) throw error;
   return data;
+};
+
+// Upload profile image to Supabase Storage
+export const uploadProfileImage = async (userId, imageUri) => {
+  try {
+    const fileName = `profile_${Date.now()}.jpg`;
+    const filePath = `${userId}/${fileName}`;
+
+    // Convert URI to Uint8Array for upload
+    const response = await fetch(imageUri);
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('profile-images')
+      .upload(filePath, uint8Array, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('Profile image upload error:', uploadError);
+      throw new Error(`Failed to upload profile image: ${uploadError.message}. Please ensure the 'profile-images' storage bucket exists in Supabase with proper RLS policies.`);
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('profile-images')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('Upload profile image error:', error);
+    throw error;
+  }
 };
 
 // Facilities API

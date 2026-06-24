@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../constants/colors';
 import BottomNavBar from '../components/BottomNavBar';
 import { useAuth } from '../context/AuthContext';
-import { updateProfile } from '../services/supabaseApi';
+import { updateProfile, uploadProfileImage } from '../services/supabaseApi';
 
 const menuSections = [
   {
@@ -72,11 +72,14 @@ const ProfileScreen = ({ navigation }) => {
         setUpdatingAvatar(true);
         const imageUri = result.assets[0].uri;
 
-        // Update local state immediately
-        setAvatar(imageUri);
+        // Upload image to Supabase Storage
+        const publicUrl = await uploadProfileImage(user.id, imageUri);
 
-        // Update profile in database
-        await updateProfile(user.id, { avatar_url: imageUri });
+        // Update local state immediately
+        setAvatar(publicUrl);
+
+        // Update profile in database with the public URL
+        await updateProfile(user.id, { avatar_url: publicUrl });
 
         // Reload profile to sync with auth context
         await loadProfile(user.id);
@@ -103,10 +106,17 @@ const ProfileScreen = ({ navigation }) => {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <TouchableOpacity style={styles.avatarContainer} onPress={() => setShowImageViewer(true)}>
-            <Image
-              source={{ uri: avatar || 'https://randomuser.me/api/portraits/men/32.jpg' }}
-              style={styles.avatar}
-            />
+            {avatar ? (
+              <Image
+                source={{ uri: avatar }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={40} color={colors.textSecondary} />
+                <Text style={styles.avatarPlaceholderText}>No photo</Text>
+              </View>
+            )}
             <View style={styles.avatarOverlay}>
               <Ionicons name="expand" size={24} color={colors.surface} />
             </View>
@@ -235,6 +245,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     borderWidth: 3,
     borderColor: colors.surface,
+  },
+  avatarPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.border,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholderText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   avatarOverlay: {
     position: 'absolute',
