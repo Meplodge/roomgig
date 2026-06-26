@@ -344,7 +344,10 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 key={t}
                 style={[styles.typeButton, type === t && styles.typeButtonActive]}
-                onPress={() => setType(t)}
+                onPress={() => {
+                  console.log('Setting type to:', t);
+                  setType(t);
+                }}
               >
                 <Text style={[styles.typeButtonText, type === t && styles.typeButtonTextActive]}>
                   {t}

@@ -37,14 +37,9 @@ const SearchBar = ({ placeholder, value, onChangeText, onFilterPress, filterCoun
       </View>
       <Animated.View style={{ transform: [{ scale: filterScale }] }}>
         <TouchableOpacity style={styles.filterButton} onPress={handleFilterPress} activeOpacity={1}>
-          <LinearGradient
-            colors={[colors.primary, '#2A5F4F']}
-            style={styles.filterGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.filterGradient}>
             <Ionicons name="options-outline" size={22} color={colors.surface} />
-          </LinearGradient>
+          </View>
           {filterCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{filterCount}</Text>
@@ -104,6 +99,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.primary,
   },
   badge: {
     position: 'absolute',

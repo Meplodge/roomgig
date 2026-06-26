@@ -29,6 +29,8 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [heartScale] = useState(new Animated.Value(1));
   const scrollRef = useRef(null);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [viewerImageIndex, setViewerImageIndex] = useState(0);
   const favorite = isFavorite(listing?.id);
 
   // Auto-close success modal after 2 seconds
@@ -208,7 +210,7 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
               <View>
                 <Text style={styles.sectionTitle}>About This Space</Text>
                 <Text style={styles.description}>
-                  Looking for a roommate to share this {listing.type.toLowerCase()}. The space is well-maintained and located in a great neighborhood. Perfect for someone who values cleanliness and respect for shared spaces.
+                  {listing.description || `Looking for a roommate to share this ${listing.type?.toLowerCase() || 'space'}. The space is well-maintained and located in a great neighborhood. Perfect for someone who values cleanliness and respect for shared spaces.`}
                 </Text>
               </View>
             )}
@@ -321,7 +323,16 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
                     <Text style={styles.sectionTitle}>Property Photos</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
                       {listing.images.map((img, index) => (
-                        <Image key={index} source={{ uri: img }} style={styles.propertyPhoto} />
+                        <TouchableOpacity
+                          key={index}
+                          onPress={() => {
+                            setViewerImageIndex(index);
+                            setShowImageViewer(true);
+                          }}
+                          activeOpacity={0.9}
+                        >
+                          <Image source={{ uri: img }} style={styles.propertyPhoto} />
+                        </TouchableOpacity>
                       ))}
                     </ScrollView>
                   </View>
@@ -433,6 +444,51 @@ const RoommateDetailsScreen = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Full Screen Image Viewer Modal */}
+      <Modal
+        visible={showImageViewer}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageViewer(false)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerClose}
+            onPress={() => setShowImageViewer(false)}
+          >
+            <Ionicons name="close" size={28} color={colors.surface} />
+          </TouchableOpacity>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={(event) => {
+              const contentOffset = event.nativeEvent.contentOffset;
+              const index = Math.round(contentOffset.x / windowWidth);
+              setViewerImageIndex(index);
+            }}
+            scrollEventThrottle={16}
+            style={styles.imageViewerScrollView}
+            contentOffset={{ x: viewerImageIndex * windowWidth, y: 0 }}
+          >
+            {listing.images.map((img, index) => (
+              <View key={index} style={[styles.imageViewerImageWrapper, { width: windowWidth }]}>
+                <Image
+                  source={{ uri: img }}
+                  style={styles.fullScreenImage}
+                  resizeMode="contain"
+                />
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.imageViewerPagination}>
+            <Text style={styles.imageViewerPaginationText}>
+              {viewerImageIndex + 1} / {listing.images.length}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -474,7 +530,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -487,7 +543,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -500,7 +556,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -870,6 +926,48 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 28,
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  imageViewerScrollView: {
+    flex: 1,
+  },
+  imageViewerImageWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageViewerPagination: {
+    position: 'absolute',
+    bottom: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  imageViewerPaginationText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
