@@ -13,11 +13,18 @@ export default function AppShell() {
   const [isSplashVisible, setSplashVisible] = useState(true);
 
   useEffect(() => {
-    // Request notification permissions on app start
-    requestNotificationPermissions();
+    let subscription = { remove: () => {} };
+    let responseListener = { remove: () => {} };
 
-    // Set up notification listeners
-    const { subscription, responseListener } = setupNotificationListeners();
+    (async () => {
+      // Request notification permissions on app start
+      await requestNotificationPermissions();
+
+      // Set up notification listeners
+      const listeners = await setupNotificationListeners();
+      subscription = listeners.subscription;
+      responseListener = listeners.responseListener;
+    })();
 
     // Cleanup listeners on unmount
     return () => {

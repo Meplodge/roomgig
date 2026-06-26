@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
+import googleLogo from '../../assets/google.png';
 
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
@@ -128,7 +129,7 @@ const LoginScreen = ({ navigation }) => {
             activeOpacity={0.9}
           >
             <View style={styles.googleIcon}>
-              <Image source={require('../../assets/google.png')} style={styles.googleLogoImage} />
+              <Image source={googleLogo} style={styles.googleLogoImage} />
             </View>
             <Text style={styles.googleButtonText}>Sign in with Google</Text>
           </TouchableOpacity>
