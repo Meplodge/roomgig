@@ -8,14 +8,21 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  Dimensions,
+  Modal,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../constants/colors';
 import FilterButton from '../components/FilterButton';
 import BottomNavBar from '../components/BottomNavBar';
 import { getRoommateListings } from '../services/supabaseApi';
+
+const { width } = Dimensions.get('window');
 
 const roommateTypes = ['All', 'Apartment', 'House', 'Room'];
 
@@ -24,6 +31,62 @@ const RoommateFinderScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [minBudget, setMinBudget] = useState('');
+  const [maxBudget, setMaxBudget] = useState('');
+  const [selectedGender, setSelectedGender] = useState('All');
+  const [selectedSmoking, setSelectedSmoking] = useState('All');
+  const [locationInput, setLocationInput] = useState('');
+  const [geoLocationEnabled, setGeoLocationEnabled] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationPermission, setLocationPermission] = useState(null);
+
+  const isRecentListing = (createdAt) => {
+    if (!createdAt) return false;
+    const listingDate = new Date(createdAt);
+    const now = new Date();
+    const daysDiff = (now - listingDate) / (1000 * 60 * 60 * 24);
+    return daysDiff <= 7;
+  };
+
+  const calculateDistance = (userLoc, listing) => {
+    if (!listing.location) return Infinity;
+    // Simple distance calculation based on location string matching
+    // In a real app, you would use actual coordinates and Haversine formula
+    const locationMatch = listing.location.toLowerCase().includes(userLoc.city?.toLowerCase() || '');
+    return locationMatch ? 0 : 1;
+  };
+
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(status);
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        // Reverse geocode to get city name
+        const reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        if (reverseGeocode[0]) {
+          setUserLocation(prev => ({ ...prev, city: reverseGeocode[0].city }));
+        }
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+    }
+  };
+
+  const toggleGeoLocation = async (value) => {
+    setGeoLocationEnabled(value);
+    if (value && !locationPermission) {
+      await requestLocationPermission();
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -44,57 +107,80 @@ const RoommateFinderScreen = ({ navigation }) => {
   };
 
   const filteredListings = listings.filter(listing => {
-    const matchesType = selectedType === 'All' || listing.type === selectedType;
+    const matchesType = selectedType === 'All' || (listing.type && listing.type === selectedType);
     const matchesSearch = searchQuery === '' || 
-      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.postedBy.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
+      (listing.title && listing.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (listing.location && listing.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (listing.postedBy?.name && listing.postedBy.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesMinBudget = !minBudget || (listing.budget_min && listing.budget_min >= parseInt(minBudget));
+    const matchesMaxBudget = !maxBudget || (listing.budget_max && listing.budget_max <= parseInt(maxBudget));
+    const matchesLocation = !locationInput || (listing.location && listing.location.toLowerCase().includes(locationInput.toLowerCase()));
+    return matchesType && matchesSearch && matchesMinBudget && matchesMaxBudget && matchesLocation;
+  }).sort((a, b) => {
+    if (geoLocationEnabled && userLocation) {
+      const distanceA = calculateDistance(userLocation, a);
+      const distanceB = calculateDistance(userLocation, b);
+      return distanceA - distanceB;
+    }
+    return 0;
   });
 
-  const renderListing = (listing) => (
-    <TouchableOpacity
-      key={listing.id}
-      style={styles.listingCard}
-      onPress={() => navigation.navigate('RoommateDetails', { listing })}
-      activeOpacity={0.8}
-    >
-      <Image
-        source={{ uri: listing.images?.[0] || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600' }}
-        style={styles.listingImage}
-      />
-      <View style={styles.listingContent}>
-        <View style={styles.listingHeader}>
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{listing.type}</Text>
-          </View>
-          <Text style={styles.price}>${listing.price}/mo</Text>
-        </View>
-        <Text style={styles.listingTitle} numberOfLines={2}>{listing.title}</Text>
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-          <Text style={styles.location}>{listing.location}</Text>
-        </View>
-        <View style={styles.postedByRow}>
-          <Image source={{ uri: listing.postedBy.avatar }} style={styles.posterAvatar} />
-          <View style={styles.posterInfo}>
-            <Text style={styles.posterName}>{listing.postedBy.name}</Text>
-            <Text style={styles.posterDetails}>{listing.postedBy.age} • {listing.postedBy.occupation}</Text>
-          </View>
-        </View>
-        <View style={styles.amenitiesRow}>
-          {listing.amenities.slice(0, 3).map((amenity, index) => (
-            <View key={index} style={styles.amenityChip}>
-              <Text style={styles.amenityText}>{amenity}</Text>
+  const renderListing = (listing) => {
+    const isNew = isRecentListing(listing.created_at);
+    const primaryImage = listing.roommate_images?.find(img => img.is_primary)?.image_url ||
+                       listing.roommate_images?.[0]?.image_url ||
+                       listing.images?.[0] ||
+                       'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600';
+
+    return (
+      <TouchableOpacity
+        key={listing.id}
+        style={styles.listingCard}
+        onPress={() => navigation.navigate('RoommateDetails', { listing })}
+        activeOpacity={0.8}
+      >
+        <View style={styles.listingImageContainer}>
+          <Image
+            source={{ uri: primaryImage }}
+            style={styles.listingImage}
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.5)']}
+            style={styles.imageGradient}
+          />
+          {isNew && (
+            <View style={styles.newBadge}>
+              <Text style={styles.newBadgeText}>NEW</Text>
             </View>
-          ))}
-          {listing.amenities.length > 3 && (
-            <Text style={styles.moreAmenities}>+{listing.amenities.length - 3}</Text>
           )}
+          <View style={styles.priceBadge}>
+            <Text style={styles.priceText}>${listing.budget_min || listing.price || 0}</Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.listingContent}>
+          <View style={styles.listingHeader}>
+            <View style={[styles.typeBadge, { backgroundColor: getTypeColor(listing.type) }]}>
+              <Text style={styles.typeText}>{listing.type || 'Room'}</Text>
+            </View>
+          </View>
+          <Text style={styles.listingTitle} numberOfLines={1}>{listing.title}</Text>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+            <Text style={styles.location} numberOfLines={1}>{listing.location}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const getTypeColor = (type) => {
+    switch (type) {
+      case 'Apartment': return colors.primaryLight;
+      case 'House': return colors.accent;
+      case 'Room': return colors.secondary;
+      default: return colors.primarySoft;
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -115,20 +201,25 @@ const RoommateFinderScreen = ({ navigation }) => {
         </View>
 
         {/* Search Bar */}
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by location, preferences..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by location, preferences..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterModalVisible(true)}>
+            <Ionicons name="options-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Filter Buttons */}
@@ -184,27 +275,45 @@ const RoommateFinderScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-                  {listings.slice(0, 5).map((listing) => (
-                    <TouchableOpacity
-                      key={listing.id}
-                      style={styles.featuredCard}
-                      onPress={() => navigation.navigate('RoommateDetails', { listing })}
-                      activeOpacity={0.8}
-                    >
-                      <Image
-                        source={{ uri: listing.images?.[0] || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600' }}
-                        style={styles.featuredImage}
-                      />
-                      <View style={styles.featuredBadge}>
-                        <Text style={styles.featuredBadgeText}>{listing.type}</Text>
-                      </View>
-                      <Text style={styles.featuredTitle} numberOfLines={1}>{listing.title}</Text>
-                      <View style={styles.featuredLocation}>
-                        <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-                        <Text style={styles.featuredLocationText} numberOfLines={1}>{listing.location}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {listings.slice(0, 5).map((listing) => {
+                    const primaryImage = listing.roommate_images?.find(img => img.is_primary)?.image_url ||
+                                       listing.roommate_images?.[0]?.image_url ||
+                                       listing.images?.[0] ||
+                                       'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600';
+                    return (
+                      <TouchableOpacity
+                        key={listing.id}
+                        style={styles.featuredCard}
+                        onPress={() => navigation.navigate('RoommateDetails', { listing })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.featuredImageContainer}>
+                          <Image
+                            source={{ uri: primaryImage }}
+                            style={styles.featuredImage}
+                          />
+                          <LinearGradient
+                            colors={['transparent', 'rgba(0,0,0,0.6)']}
+                            style={styles.featuredGradient}
+                          />
+                          <View style={styles.featuredBadge}>
+                            <Text style={styles.featuredBadgeText}>{listing.type || 'Room'}</Text>
+                          </View>
+                        </View>
+                        <View style={styles.featuredContent}>
+                          <Text style={styles.featuredTitle} numberOfLines={1}>{listing.title}</Text>
+                          <View style={styles.featuredLocation}>
+                            <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+                            <Text style={styles.featuredLocationText} numberOfLines={1}>{listing.location}</Text>
+                          </View>
+                          <View style={styles.featuredPrice}>
+                            <Ionicons name="cash-outline" size={12} color={colors.primary} />
+                            <Text style={styles.featuredPriceText}>${listing.budget_min || listing.price || 0}/mo</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
               </View>
 
@@ -217,6 +326,160 @@ const RoommateFinderScreen = ({ navigation }) => {
         </ScrollView>
       </View>
       <BottomNavBar activeTab="roommate" navigation={navigation} />
+
+      {/* Advanced Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Advanced Filters</Text>
+              <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* Location */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Location</Text>
+                <View style={styles.locationInput}>
+                  <Ionicons name="location-outline" size={20} color={colors.textSecondary} style={styles.locationIcon} />
+                  <TextInput
+                    style={styles.locationText}
+                    placeholder="Enter city or area"
+                    placeholderTextColor={colors.textLight}
+                    value={locationInput}
+                    onChangeText={setLocationInput}
+                  />
+                </View>
+              </View>
+
+              {/* Geolocation Toggle */}
+              <View style={styles.filterSection}>
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleInfo}>
+                    <Text style={styles.filterLabel}>Use My Location</Text>
+                    <Text style={styles.toggleSubtitle}>Prioritize listings near you</Text>
+                  </View>
+                  <Switch
+                    value={geoLocationEnabled}
+                    onValueChange={toggleGeoLocation}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={geoLocationEnabled ? colors.surface : colors.surface}
+                  />
+                </View>
+              </View>
+
+              {/* Budget Range */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Budget Range ($/mo)</Text>
+                <View style={styles.budgetRow}>
+                  <View style={styles.budgetInput}>
+                    <TextInput
+                      style={styles.budgetText}
+                      placeholder="Min"
+                      placeholderTextColor={colors.textLight}
+                      value={minBudget}
+                      onChangeText={setMinBudget}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <Text style={styles.budgetSeparator}>-</Text>
+                  <View style={styles.budgetInput}>
+                    <TextInput
+                      style={styles.budgetText}
+                      placeholder="Max"
+                      placeholderTextColor={colors.textLight}
+                      value={maxBudget}
+                      onChangeText={setMaxBudget}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Gender Preference */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Gender Preference</Text>
+                <View style={styles.optionRow}>
+                  {['All', 'Male', 'Female', 'Any'].map((gender) => (
+                    <TouchableOpacity
+                      key={gender}
+                      style={[
+                        styles.optionButton,
+                        selectedGender === gender && styles.optionButtonSelected
+                      ]}
+                      onPress={() => setSelectedGender(gender)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          selectedGender === gender && styles.optionTextSelected
+                        ]}
+                      >
+                        {gender}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Smoking Preference */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Smoking Preference</Text>
+                <View style={styles.optionRow}>
+                  {['All', 'Smoker', 'Non-smoker'].map((smoking) => (
+                    <TouchableOpacity
+                      key={smoking}
+                      style={[
+                        styles.optionButton,
+                        selectedSmoking === smoking && styles.optionButtonSelected
+                      ]}
+                      onPress={() => setSelectedSmoking(smoking)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          selectedSmoking === smoking && styles.optionTextSelected
+                        ]}
+                      >
+                        {smoking}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.clearFiltersButton}
+                onPress={() => {
+                  setMinBudget('');
+                  setMaxBudget('');
+                  setSelectedGender('All');
+                  setSelectedSmoking('All');
+                  setLocationInput('');
+                  setGeoLocationEnabled(false);
+                }}
+              >
+                <Text style={styles.clearFiltersText}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyFiltersButton}
+                onPress={() => setFilterModalVisible(false)}
+              >
+                <Text style={styles.applyFiltersText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -262,30 +525,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.surface,
   },
+  searchSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    marginHorizontal: 20,
-    marginBottom: 20,
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 12,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    height: 50,
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  searchIcon: {
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: colors.text,
   },
-  searchPlaceholder: {
-    fontSize: 15,
-    color: colors.textSecondary,
+  clearButton: {
+    marginLeft: 8,
+  },
+  filterIcon: {
+    width: 50,
+    height: 50,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterContainer: {
     paddingHorizontal: 20,
@@ -308,67 +581,86 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginLeft: 8,
+  },
   featuredCard: {
-    width: 180,
+    width: 200,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     marginRight: 16,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+  },
+  featuredImageContainer: {
+    position: 'relative',
   },
   featuredImage: {
     width: '100%',
-    height: 120,
+    height: 140,
     resizeMode: 'cover',
+  },
+  featuredGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
   },
   featuredBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: 12,
+    left: 12,
     backgroundColor: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   featuredBadgeText: {
     color: colors.surface,
     fontSize: 10,
-    fontWeight: '600',
-  },
-  featuredPrice: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  featuredPriceText: {
-    fontSize: 11,
     fontWeight: '700',
-    color: colors.primary,
+  },
+  featuredContent: {
+    padding: 14,
   },
   featuredTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.text,
-    paddingHorizontal: 12,
-    paddingTop: 12,
+    marginBottom: 8,
   },
   featuredLocation: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingBottom: 12,
+    marginBottom: 8,
   },
   featuredLocationText: {
     fontSize: 12,
     color: colors.textSecondary,
+    marginLeft: 4,
+  },
+  featuredPrice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  featuredPriceText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
     marginLeft: 4,
   },
   listingsContainer: {
@@ -441,109 +733,229 @@ const styles = StyleSheet.create({
   },
   listingCard: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
-    marginBottom: 20,
+    borderRadius: 16,
+    marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+  },
+  listingImageContainer: {
+    position: 'relative',
   },
   listingImage: {
     width: '100%',
-    height: 200,
-    backgroundColor: colors.border,
+    height: 120,
+    resizeMode: 'cover',
+  },
+  imageGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 40,
+  },
+  newBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  newBadgeText: {
+    color: colors.surface,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  priceBadge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  priceText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
   },
   listingContent: {
-    padding: 20,
+    padding: 12,
   },
   listingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   typeBadge: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   typeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: colors.primary,
-  },
-  price: {
-    fontSize: 20,
-    fontWeight: '800',
     color: colors.primary,
   },
   listingTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 10,
-    lineHeight: 24,
+    marginBottom: 6,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
   location: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    marginLeft: 6,
+    marginLeft: 4,
   },
-  postedByRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    backgroundColor: colors.background,
-    padding: 12,
-    borderRadius: 16,
-  },
-  posterAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
-  },
-  posterInfo: {
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  posterName: {
-    fontSize: 15,
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
-  posterDetails: {
+  modalBody: {
+    padding: 20,
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  budgetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  budgetInput: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  budgetText: {
+    fontSize: 15,
+    color: colors.text,
+  },
+  locationInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  locationIcon: {
+    marginRight: 12,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleInfo: {
+    flex: 1,
+  },
+  toggleSubtitle: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: 4,
   },
-  amenitiesRow: {
+  budgetSeparator: {
+    fontSize: 20,
+    color: colors.textSecondary,
+    marginHorizontal: 12,
+  },
+  optionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
-  amenityChip: {
+  optionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     backgroundColor: colors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  amenityText: {
-    fontSize: 13,
+  optionButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  optionText: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  moreAmenities: {
-    fontSize: 13,
-    color: colors.primary,
+  optionTextSelected: {
+    color: colors.surface,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 12,
+  },
+  clearFiltersButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  clearFiltersText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  applyFiltersButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  applyFiltersText: {
+    fontSize: 15,
     fontWeight: '700',
+    color: colors.surface,
   },
 });
 
