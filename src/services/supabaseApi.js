@@ -1,4 +1,13 @@
 import { supabase } from '../utils/supabase';
+import { File } from 'expo-file-system';
+
+// Read a local image file into a Uint8Array for upload.
+// On Android, fetch('file://...').arrayBuffer() intermittently throws
+// "Network request failed"; reading bytes natively via expo-file-system
+// avoids the network layer entirely and is reliable.
+const readImageBytes = async (imageUri) => {
+  return await new File(imageUri).bytes();
+};
 
 // Test database connection
 export const testConnection = async () => {
@@ -238,10 +247,8 @@ export const createProperty = async (propertyData, userId) => {
 
       console.log('Uploading image:', i + 1, 'of', propertyData.images.length);
 
-      // Convert URI to Uint8Array for upload
-      const response = await fetch(imageUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
+      // Read local file bytes natively (avoids Android fetch() failures)
+      const uint8Array = await readImageBytes(imageUri);
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('property-images')
@@ -700,10 +707,8 @@ export const createRoommateListing = async (listingData, userId) => {
       const fileName = `roommate_${Date.now()}_${i}.jpg`;
       const filePath = `${userId}/${fileName}`;
 
-      // Convert URI to Uint8Array for upload
-      const response = await fetch(imageUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
+      // Read local file bytes natively (avoids Android fetch() failures)
+      const uint8Array = await readImageBytes(imageUri);
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('roommate-images')
@@ -863,9 +868,9 @@ export const updateRoommateListing = async (listingId, listingData, userId) => {
       }
       const fileName = `roommate_${Date.now()}_${i}.jpg`;
       const filePath = `${userId}/${fileName}`;
-      const response = await fetch(imageUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // Read local file bytes natively (avoids Android fetch() failures)
+      const uint8Array = await readImageBytes(imageUri);
 
       const { error: uploadError } = await supabase.storage
         .from('roommate-images')
@@ -1185,10 +1190,8 @@ export const uploadProfileImage = async (userId, imageUri) => {
     const fileName = `profile_${Date.now()}.jpg`;
     const filePath = `${userId}/${fileName}`;
 
-    // Convert URI to Uint8Array for upload
-    const response = await fetch(imageUri);
-    const arrayBuffer = await response.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+    // Read local file bytes natively (avoids Android fetch() failures)
+    const uint8Array = await readImageBytes(imageUri);
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('profile-images')

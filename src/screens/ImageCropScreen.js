@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { colors } from '../constants/colors';
 import { consumeCropHandler } from '../utils/cropBridge';
-import { buildResizeAction, IMAGE_COMPRESS } from '../utils/imageOptimizer';
+import { buildResizeAction, IMAGE_COMPRESS, persistImage } from '../utils/imageOptimizer';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const AREA_W = SCREEN_W - 32;
@@ -160,9 +160,18 @@ const ImageCropScreen = ({ route, navigation }) => {
         { compress: IMAGE_COMPRESS, format: ImageManipulator.SaveFormat.JPEG }
       );
 
+      // Move out of the evictable cache dir so the file still exists when the
+      // listing is submitted and its bytes are read for upload.
+      let finalUri = result.uri;
+      try {
+        finalUri = persistImage(result.uri);
+      } catch (persistErr) {
+        console.warn('Persisting cropped image failed, using temp uri:', persistErr);
+      }
+
       const handler = consumeCropHandler();
       if (handler) {
-        handler(result.uri);
+        handler(finalUri);
       }
       navigation.goBack();
     } catch (e) {

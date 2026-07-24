@@ -1,4 +1,21 @@
 import * as ImageManipulator from 'expo-image-manipulator';
+import { File, Directory, Paths } from 'expo-file-system';
+
+// Subfolder inside the (persistent) document directory for optimized images
+// that are pending upload.
+const UPLOAD_DIR_NAME = 'upload-cache';
+
+// Copy a (possibly cache-based) image into the persistent document directory.
+// expo-image-manipulator writes to the cache dir, which Android can evict
+// before the user submits, causing FileNotFoundException at upload time.
+export const persistImage = (tempUri) => {
+  const dir = new Directory(Paths.document, UPLOAD_DIR_NAME);
+  if (!dir.exists) dir.create({ intermediates: true });
+  const dest = new File(dir, `img_${Date.now()}_${Math.round(Math.random() * 1e6)}.jpg`);
+  if (dest.exists) dest.delete();
+  new File(tempUri).copy(dest);
+  return dest.uri;
+};
 
 // Longest-side cap. 2048px keeps photos crisp full-width even on a 12" tablet
 // (e.g. iPad Pro 12.9" ~2048px logical width) while keeping file sizes reasonable.
@@ -35,7 +52,14 @@ export const optimizeImage = async (uri, options = {}) => {
       compress,
       format: ImageManipulator.SaveFormat.JPEG,
     });
-    return result.uri;
+    // Move the optimized image out of the evictable cache dir so it still
+    // exists when the user submits the form and we read its bytes for upload.
+    try {
+      return persistImage(result.uri);
+    } catch (persistErr) {
+      console.warn('Persisting optimized image failed, using temp uri:', persistErr);
+      return result.uri;
+    }
   } catch (e) {
     console.error('Image optimization failed:', e);
     return uri;
