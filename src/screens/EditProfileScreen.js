@@ -18,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile, uploadProfileImage } from '../services/supabaseApi';
+import { optimizeImage } from '../utils/imageOptimizer';
 
 const EditProfileScreen = ({ navigation }) => {
   const { user, profile, loadProfile } = useAuth();
@@ -271,7 +272,8 @@ const EditProfileScreen = ({ navigation }) => {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setAvatar(result.assets[0].uri);
+      const optimizedUri = await optimizeImage(result.assets[0].uri, { maxDimension: 600, compress: 0.85 });
+      setAvatar(optimizedUri);
     }
   };
 

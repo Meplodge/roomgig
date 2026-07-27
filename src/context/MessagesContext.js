@@ -14,6 +14,11 @@ const formatTime = (timestamp) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+// DB conversation_id is a uuid column. Chat ids coming from mock data or
+// notifications (e.g. "2") are not uuids, so we must not route those to the DB.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (value) => typeof value === 'string' && UUID_REGEX.test(value);
+
 export const MessagesProvider = ({ children }) => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -228,12 +233,15 @@ export const MessagesProvider = ({ children }) => {
       persistMessages(nextMessages);
       persistConversations(bumpConversation(conversationId, trimmed));
 
-      // Then send to database for routing (will be deleted by receiver)
-      try {
-        await sendMessageApi(conversationId, user.id, trimmed);
-      } catch (e) {
-        console.error('Error sending message to DB (routing):', e.message, e);
-        // Message is already saved locally, so don't throw error
+      // Then send to database for routing (will be deleted by receiver).
+      // Only real DB conversations have uuid ids; skip mock/notification chats.
+      if (isUuid(conversationId)) {
+        try {
+          await sendMessageApi(conversationId, user.id, trimmed);
+        } catch (e) {
+          console.error('Error sending message to DB (routing):', e.message, e);
+          // Message is already saved locally, so don't throw error
+        }
       }
     } catch (e) {
       console.error('Error sending message:', e);

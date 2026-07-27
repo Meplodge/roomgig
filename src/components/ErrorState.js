@@ -27,15 +27,10 @@ const ErrorState = ({
       <Text style={styles.message}>{message}</Text>
       {actionText && onAction && (
         <TouchableOpacity style={styles.actionButton} onPress={onAction}>
-          <LinearGradient
-            colors={[colors.error, '#C9654A']}
-            style={styles.buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.buttonInner}>
             <Ionicons name="refresh-outline" size={20} color={colors.surface} style={styles.buttonIcon} />
             <Text style={styles.actionText}>{actionText}</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       )}
     </View>
@@ -77,13 +72,9 @@ const styles = StyleSheet.create({
   actionButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: colors.error,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: colors.error,
   },
-  buttonGradient: {
+  buttonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 32,

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import ImageCarousel from '../components/ImageCarousel';
-import { getPropertyReviews, createReview, trackPropertyView } from '../services/supabaseApi';
+import { getPropertyReviews, createReview, trackPropertyView, getProfileById } from '../services/supabaseApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -37,6 +37,7 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
   const [hasReviewed, setHasReviewed] = useState(false);
   const [currentRating, setCurrentRating] = useState(property?.rating || property?.rating_avg || 0);
   const [currentReviewCount, setCurrentReviewCount] = useState(property?.reviews || property?.review_count || 0);
+  const [host, setHost] = useState(null);
 
   // Fetch reviews from database and track property view
   useEffect(() => {
@@ -46,6 +47,40 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
       trackPropertyView(property.id, user?.id || null);
     }
   }, [property?.id, user?.id]);
+
+  // Load the host's profile so we can show their real avatar and enable contact.
+  useEffect(() => {
+    let active = true;
+    const loadHost = async () => {
+      if (!property?.host_id) return;
+      const data = await getProfileById(property.host_id);
+      if (active) setHost(data);
+    };
+    loadHost();
+    return () => {
+      active = false;
+    };
+  }, [property?.host_id]);
+
+  const hostName = host?.full_name || property.host_name || property.host || 'Host';
+  const hostAvatar = host?.avatar_url || null;
+  const hostPhone = host?.phone || property.host_phone || null;
+
+  const handleContactHost = () => {
+    if (property?.host_id && property.host_id === user?.id) {
+      Alert.alert('This is your listing', 'You cannot contact yourself about your own property.');
+      return;
+    }
+    navigation.navigate('Chat', {
+      chat: {
+        id: property.host_id || property.id,
+        name: hostName,
+        avatar: hostAvatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(hostName),
+        property: property.name || property.title || 'Property Inquiry',
+        phone: hostPhone,
+      },
+    });
+  };
 
   const fetchReviews = async () => {
     if (!property?.id) return;
@@ -264,18 +299,27 @@ const PropertyDetailsScreen = ({ route, navigation }) => {
             <View style={styles.hostSection}>
               <Text style={styles.sectionTitle}>Host</Text>
               <View style={styles.hostInfo}>
-                <Image
-                  source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }}
-                  style={styles.hostAvatar}
-                />
+                {hostAvatar ? (
+                  <Image
+                    source={{ uri: hostAvatar }}
+                    style={styles.hostAvatar}
+                    resizeMethod="resize"
+                  />
+                ) : (
+                  <View style={[styles.hostAvatar, styles.hostAvatarPlaceholder]}>
+                    <Ionicons name="person" size={24} color={colors.textSecondary} />
+                  </View>
+                )}
                 <View style={styles.hostDetails}>
-                  <Text style={styles.hostName}>{property.host || property.host_name || 'Host'}</Text>
+                  <Text style={styles.hostName}>{hostName}</Text>
                   <View style={styles.hostRatingRow}>
                     <Ionicons name="star" size={13} color={colors.star} />
-                    <Text style={styles.hostRating}>4.8 (120 reviews)</Text>
+                    <Text style={styles.hostRating}>
+                      {currentRating > 0 ? `${currentRating} (${currentReviewCount} reviews)` : 'No reviews yet'}
+                    </Text>
                   </View>
                 </View>
-                <TouchableOpacity style={styles.contactButton}>
+                <TouchableOpacity style={styles.contactButton} onPress={handleContactHost}>
                   <Text style={styles.contactButtonText}>Contact</Text>
                 </TouchableOpacity>
               </View>
@@ -678,6 +722,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginRight: 12,
   },
+  hostAvatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   hostDetails: {
     flex: 1,
   },
@@ -819,11 +867,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 12,
     borderRadius: 20,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   bookButtonText: {
     color: colors.surface,

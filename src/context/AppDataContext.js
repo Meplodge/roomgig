@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
-import { getProperties, getFavorites, toggleFavorite as toggleFavoriteApi, getBookings, createBooking, createProperty as createPropertyApi, testConnection } from '../services/supabaseApi';
+import { supabase } from '../utils/supabase';
+import { getProperties, getFavorites, toggleFavorite as toggleFavoriteApi, getBookings, createBooking, createProperty as createPropertyApi, deleteProperty as deletePropertyApi, testConnection } from '../services/supabaseApi';
 
 const AppDataContext = createContext(null);
 
@@ -53,6 +54,31 @@ export const AppDataProvider = ({ children }) => {
       loadBookings();
     }
   }, [user]);
+
+  // Realtime: keep the property list in sync with the database so deletes/updates
+  // from this device or any other client are reflected in the UI immediately.
+  useEffect(() => {
+    const channel = supabase
+      .channel('properties-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'properties' },
+        (payload) => {
+          console.log('Realtime property change:', payload.eventType, payload.new?.id || payload.old?.id);
+          if (payload.eventType === 'DELETE') {
+            setPropertiesList((prev) => prev.filter((p) => p.id !== payload.old?.id));
+          } else {
+            // INSERT or UPDATE: reload to get joined images/facilities.
+            loadProperties();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const loadProperties = async () => {
     try {
@@ -147,6 +173,20 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
+  const removeProperty = async (propertyId) => {
+    // Optimistically remove from the shared list so every screen updates instantly.
+    const previous = propertiesList;
+    setPropertiesList((prev) => prev.filter((p) => p.id !== propertyId));
+    try {
+      await deletePropertyApi(propertyId);
+    } catch (e) {
+      console.error('Error deleting property:', e);
+      // Roll back on failure.
+      setPropertiesList(previous);
+      throw e;
+    }
+  };
+
   return (
     <AppDataContext.Provider
       value={{
@@ -159,6 +199,7 @@ export const AppDataProvider = ({ children }) => {
         toggleFavorite,
         addBooking,
         addProperty,
+        removeProperty,
         loadProperties,
         refreshProperties: loadProperties,
       }}

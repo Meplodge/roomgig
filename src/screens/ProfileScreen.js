@@ -11,11 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../constants/colors';
 import BottomNavBar from '../components/BottomNavBar';
 import { useAuth } from '../context/AuthContext';
-import { updateProfile, uploadProfileImage } from '../services/supabaseApi';
+import { useAppData } from '../context/AppDataContext';
+import { updateProfile, uploadProfileImage, getUserProperties } from '../services/supabaseApi';
+import { optimizeImage } from '../utils/imageOptimizer';
 
 const menuSections = [
   {
@@ -41,16 +44,40 @@ const menuSections = [
 
 const ProfileScreen = ({ navigation }) => {
   const { user, profile, logout, loadProfile } = useAuth();
+  const { favorites } = useAppData();
   const [avatar, setAvatar] = useState(profile?.avatar_url || user?.avatar || null);
+  const [avatarError, setAvatarError] = useState(false);
   const [updatingAvatar, setUpdatingAvatar] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [listingsCount, setListingsCount] = useState(0);
+  const [averageRating, setAverageRating] = useState(0);
 
-  // Update avatar when profile data changes
-  React.useEffect(() => {
-    if (profile?.avatar_url) {
-      setAvatar(profile.avatar_url);
+  const loadStats = React.useCallback(async () => {
+    if (!user) return;
+    try {
+      const props = await getUserProperties(user.id);
+      setListingsCount(props.length);
+      const rated = props.filter((p) => p.reviews > 0);
+      const avg = rated.length
+        ? rated.reduce((sum, p) => sum + (p.rating || 0), 0) / rated.length
+        : 0;
+      setAverageRating(Math.round(avg * 10) / 10);
+    } catch (e) {
+      console.error('Error loading profile stats:', e);
     }
-  }, [profile]);
+  }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadStats();
+    }, [loadStats])
+  );
+
+  // Update avatar when profile or user data changes
+  React.useEffect(() => {
+    setAvatar(profile?.avatar_url || user?.avatar || null);
+    setAvatarError(false);
+  }, [profile, user]);
 
   // Load profile data when component mounts
   React.useEffect(() => {
@@ -70,12 +97,17 @@ const ProfileScreen = ({ navigation }) => {
 
       if (!result.canceled) {
         setUpdatingAvatar(true);
+        setAvatarError(false);
         const imageUri = result.assets[0].uri;
 
-        // Upload image to Supabase Storage
-        const publicUrl = await uploadProfileImage(user.id, imageUri);
+        // Resize/compress for fast local preview before uploading
+        const optimizedUri = await optimizeImage(imageUri, { maxDimension: 600, compress: 0.85 });
+        setAvatar(optimizedUri);
 
-        // Update local state immediately
+        // Upload image to Supabase Storage
+        const publicUrl = await uploadProfileImage(user.id, optimizedUri);
+
+        // Update local state with the remote URL
         setAvatar(publicUrl);
 
         // Update profile in database with the public URL
@@ -106,12 +138,16 @@ const ProfileScreen = ({ navigation }) => {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <TouchableOpacity style={styles.avatarContainer} onPress={() => setShowImageViewer(true)}>
-            {avatar ? (
+            {avatar && !avatarError ? (
               <Image
                 source={{ uri: avatar }}
                 style={styles.avatar}
+                resizeMode="cover"
                 onLoad={() => console.log('Profile avatar loaded successfully:', avatar)}
-                onError={(e) => console.log('Profile avatar load error:', e.nativeEvent.error, 'URI:', avatar)}
+                onError={(e) => {
+                  console.log('Profile avatar load error:', e.nativeEvent.error, 'URI:', avatar);
+                  setAvatarError(true);
+                }}
               />
             ) : (
               <View style={styles.avatarPlaceholder}>
@@ -125,7 +161,7 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
           <Text style={styles.name}>{formatName(user?.name)}</Text>
           <Text style={styles.email}>{user?.email || ''}</Text>
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditProfile')}>
             <Ionicons name="create-outline" size={16} color={colors.surface} />
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
@@ -133,18 +169,18 @@ const ProfileScreen = ({ navigation }) => {
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>12</Text>
+          <TouchableOpacity style={styles.statBox} onPress={() => navigation.navigate('MyPropertyListings')}>
+            <Text style={styles.statNumber}>{listingsCount}</Text>
             <Text style={styles.statLabel}>Listings</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>48</Text>
+          <TouchableOpacity style={styles.statBox} onPress={() => navigation.navigate('Saved')}>
+            <Text style={styles.statNumber}>{favorites?.length || 0}</Text>
             <Text style={styles.statLabel}>Saved</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>4.8</Text>
+            <Text style={styles.statNumber}>{averageRating > 0 ? averageRating.toFixed(1) : '-'}</Text>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>

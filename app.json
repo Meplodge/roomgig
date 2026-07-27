@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "RealEstateApp",
-    "slug": "realestateapp",
+    "slug": "roomgig",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -54,8 +54,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "45acf41d-f905-485d-8a83-7a27f113b99a"
+        "projectId": "1b0f0c67-ec95-4be4-be00-6d9839603529"
       }
-    }
+    },
+    "owner": "mmoyana29"
   }
 }

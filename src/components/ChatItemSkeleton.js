@@ -1,19 +1,32 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../constants/colors';
 
 const ChatItemSkeleton = () => {
+  const opacity = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 850, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.45, duration: 850, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.avatar} />
+      <Animated.View style={[styles.avatar, { opacity }]} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={[styles.skeleton, styles.name]} />
-          <View style={[styles.skeleton, styles.time]} />
+          <Animated.View style={[styles.skeleton, styles.name, { opacity }]} />
+          <Animated.View style={[styles.skeleton, styles.time, { opacity }]} />
         </View>
-        <View style={[styles.skeleton, styles.property]} />
-        <View style={[styles.skeleton, styles.message]} />
+        <Animated.View style={[styles.skeleton, styles.property, { opacity }]} />
+        <Animated.View style={[styles.skeleton, styles.message, { opacity }]} />
       </View>
     </View>
   );

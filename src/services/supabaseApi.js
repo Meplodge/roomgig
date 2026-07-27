@@ -1,5 +1,6 @@
 import { supabase } from '../utils/supabase';
 import { File } from 'expo-file-system';
+import { optimizeImage } from '../utils/imageOptimizer';
 
 // Read a local image file into a Uint8Array for upload.
 // On Android, fetch('file://...').arrayBuffer() intermittently throws
@@ -90,6 +91,9 @@ export const getProperties = async (filters = {}) => {
 
   console.log('Properties fetched:', data?.length || 0);
   console.log('Raw data sample:', data?.[0] ? JSON.stringify(data[0], null, 2).substring(0, 200) : 'No data');
+  data?.forEach(p => {
+    console.log('Property', p.id, 'property_images:', JSON.stringify(p.property_images));
+  });
 
   // Get ratings for all properties
   const propertyIds = data.map(p => p.id);
@@ -245,10 +249,11 @@ export const createProperty = async (propertyData, userId) => {
       const fileName = `property_${Date.now()}_${i}.jpg`;
       const filePath = `${userId}/${fileName}`;
 
-      console.log('Uploading image:', i + 1, 'of', propertyData.images.length);
+      console.log('Optimizing + uploading image:', i + 1, 'of', propertyData.images.length);
 
-      // Read local file bytes natively (avoids Android fetch() failures)
-      const uint8Array = await readImageBytes(imageUri);
+      // Optimize then read local file bytes natively (avoids Android fetch() failures)
+      const optimizedUri = await optimizeImage(imageUri);
+      const uint8Array = await readImageBytes(optimizedUri);
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('property-images')
@@ -434,10 +439,15 @@ export const updateProperty = async (propertyId, propertyData, userId) => {
         const image = propertyData.images[i];
         if (image.uri) {
           const fileName = `${userId}/property_${Date.now()}_${i}.jpg`;
+          console.log('Optimizing + uploading updated image:', i + 1);
+
+          const optimizedUri = await optimizeImage(image.uri);
+          const uint8Array = await readImageBytes(optimizedUri);
+
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('property-images')
-            .upload(fileName, image, {
-              cacheControl: '3600',
+            .upload(fileName, uint8Array, {
+              contentType: 'image/jpeg',
               upsert: false,
             });
 
@@ -707,8 +717,10 @@ export const createRoommateListing = async (listingData, userId) => {
       const fileName = `roommate_${Date.now()}_${i}.jpg`;
       const filePath = `${userId}/${fileName}`;
 
+      // Resize/compress for fast preview and upload
+      const optimizedUri = await optimizeImage(imageUri, { maxDimension: 800, compress: 0.85 });
       // Read local file bytes natively (avoids Android fetch() failures)
-      const uint8Array = await readImageBytes(imageUri);
+      const uint8Array = await readImageBytes(optimizedUri);
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('roommate-images')
@@ -869,8 +881,10 @@ export const updateRoommateListing = async (listingId, listingData, userId) => {
       const fileName = `roommate_${Date.now()}_${i}.jpg`;
       const filePath = `${userId}/${fileName}`;
 
+      // Resize/compress for fast preview and upload
+      const optimizedUri = await optimizeImage(imageUri, { maxDimension: 800, compress: 0.85 });
       // Read local file bytes natively (avoids Android fetch() failures)
-      const uint8Array = await readImageBytes(imageUri);
+      const uint8Array = await readImageBytes(optimizedUri);
 
       const { error: uploadError } = await supabase.storage
         .from('roommate-images')
@@ -1172,6 +1186,21 @@ export const saveSearchHistory = async (userId, query, filters, resultsCount) =>
 };
 
 // Profile API
+export const getProfileById = async (userId) => {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, phone, email')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching profile:', error);
+    return null;
+  }
+  return data;
+};
+
 export const updateProfile = async (userId, updates) => {
   const { data, error } = await supabase
     .from('profiles')

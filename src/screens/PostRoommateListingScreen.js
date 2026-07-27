@@ -183,7 +183,7 @@ const PostRoommateListingScreen = ({ navigation, route }) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
-      quality: 1,
+      quality: 0.9,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {

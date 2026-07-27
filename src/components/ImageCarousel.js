@@ -5,8 +5,9 @@ import { colors } from '../constants/colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ImageCarousel = ({ images, height = 200, onImagePress }) => {
+const ImageCarousel = ({ images, height = 200, onImagePress, onImageLoad, onImageError }) => {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [wrapperWidth, setWrapperWidth] = useState(SCREEN_WIDTH);
   const scrollViewRef = useRef(null);
 
   const handleScroll = (event) => {
@@ -40,8 +41,8 @@ const ImageCarousel = ({ images, height = 200, onImagePress }) => {
         activeOpacity={1}
         onPress={() => onImagePress && onImagePress(0)}
       >
-        <View style={[styles.imageWrapper, { height }]}>
-          <Image source={{ uri: images[0] }} style={[styles.image, { height }]} resizeMode="cover" />
+        <View style={[styles.imageWrapper, { height }]} onLayout={(e) => setWrapperWidth(e.nativeEvent.layout.width)}>
+          <Image source={{ uri: images[0] }} style={[styles.image, { width: wrapperWidth, height }]} resizeMode="cover" resizeMethod="resize" onLoad={() => { console.log('ImageCarousel single image loaded:', images[0]); onImageLoad && onImageLoad(); }} onError={(e) => { console.log('ImageCarousel single image error:', images[0], e?.nativeEvent?.error); onImageError && onImageError(e); }} />
         </View>
       </TouchableOpacity>
     );
@@ -64,8 +65,9 @@ const ImageCarousel = ({ images, height = 200, onImagePress }) => {
             style={[styles.imageWrapper, { width: SCREEN_WIDTH, height }]}
             activeOpacity={1}
             onPress={() => onImagePress && onImagePress(index)}
+            onLayout={(e) => setWrapperWidth(e.nativeEvent.layout.width)}
           >
-            <Image source={{ uri: image }} style={[styles.image, { height }]} resizeMode="cover" />
+            <Image source={{ uri: image }} style={[styles.image, { width: wrapperWidth, height }]} resizeMode="cover" resizeMethod="resize" onLoad={index === 0 ? () => { console.log('ImageCarousel first image loaded:', image); onImageLoad && onImageLoad(); } : undefined} onError={index === 0 ? (e) => { console.log('ImageCarousel first image error:', image, e?.nativeEvent?.error); onImageError && onImageError(e); } : undefined} />
           </TouchableOpacity>
         ))}
       </ScrollView>

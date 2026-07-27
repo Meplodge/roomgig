@@ -1,13 +1,26 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../constants/colors';
 
 const PropertyCardSkeleton = () => {
+  const opacity = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 850, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.45, duration: 850, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
+
   return (
     <View style={styles.container}>
       <View style={styles.imageWrapper}>
-        <View style={styles.image} />
+        <Animated.View style={[styles.image, { opacity }]} />
         <LinearGradient
           colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
           style={styles.shimmer}
@@ -17,14 +30,14 @@ const PropertyCardSkeleton = () => {
       </View>
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={[styles.skeleton, styles.name]} />
-          <View style={[styles.skeleton, styles.price]} />
+          <Animated.View style={[styles.skeleton, styles.name, { opacity }]} />
+          <Animated.View style={[styles.skeleton, styles.price, { opacity }]} />
         </View>
-        <View style={[styles.skeleton, styles.location]} />
+        <Animated.View style={[styles.skeleton, styles.location, { opacity }]} />
         <View style={styles.specs}>
-          <View style={[styles.skeleton, styles.spec]} />
-          <View style={[styles.skeleton, styles.spec]} />
-          <View style={[styles.skeleton, styles.spec]} />
+          <Animated.View style={[styles.skeleton, styles.spec, { opacity }]} />
+          <Animated.View style={[styles.skeleton, styles.spec, { opacity }]} />
+          <Animated.View style={[styles.skeleton, styles.spec, { opacity }]} />
         </View>
       </View>
     </View>

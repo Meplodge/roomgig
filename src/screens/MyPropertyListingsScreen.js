@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -13,12 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAppData } from '../context/AppDataContext';
-import { deleteProperty, getUserProperties } from '../services/supabaseApi';
+import { getUserProperties } from '../services/supabaseApi';
 import PropertyCard from '../components/PropertyCard';
 import { useAuth } from '../context/AuthContext';
 
 const MyPropertyListingsScreen = ({ navigation }) => {
-  const { refreshProperties } = useAppData();
+  const { removeProperty } = useAppData();
   const { user } = useAuth();
   const [userProperties, setUserProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +30,12 @@ const MyPropertyListingsScreen = ({ navigation }) => {
   useEffect(() => {
     loadUserProperties();
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserProperties();
+    }, [user])
+  );
 
   const loadUserProperties = async () => {
     if (!user) {
@@ -58,12 +65,15 @@ const MyPropertyListingsScreen = ({ navigation }) => {
     if (!propertyToDelete) return;
     setDeletingId(propertyToDelete.id);
     setDeleteModalVisible(false);
+    // Optimistically remove from this screen's list for instant feedback.
+    setUserProperties((prev) => prev.filter((p) => p.id !== propertyToDelete.id));
     try {
-      await deleteProperty(propertyToDelete.id);
-      await loadUserProperties();
+      await removeProperty(propertyToDelete.id);
       Alert.alert('Success', 'Property deleted successfully');
     } catch (error) {
       Alert.alert('Error', 'Failed to delete property');
+      // Reload to restore the item if deletion failed.
+      await loadUserProperties();
     } finally {
       setDeletingId(null);
       setPropertyToDelete(null);

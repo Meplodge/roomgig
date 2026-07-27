@@ -335,7 +335,7 @@ const HomeScreen = ({ navigation }) => {
                 onPress={() => navigation.navigate('PropertyDetails', { property })}
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: property.image }} style={styles.topPropertyImage} />
+                <Image source={{ uri: property.image }} style={[styles.topPropertyImage, { width: 180, height: 120 }]} resizeMethod="resize" />
                 <View style={styles.topPropertyBadge}>
                   <Text style={styles.topPropertyBadgeText}>{property.type}</Text>
                 </View>

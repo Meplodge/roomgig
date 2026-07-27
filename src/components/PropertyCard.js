@@ -6,12 +6,15 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { colors } from '../constants/colors';
 import { useAppData } from '../context/AppDataContext';
 import ImageCarousel from './ImageCarousel';
+import PropertyCardSkeleton from './PropertyCardSkeleton';
 
 const PropertyCard = ({ property, onPress, style }) => {
   const { isFavorite, toggleFavorite } = useAppData();
   const favorite = isFavorite(property.id);
+  const images = (property.images || [property.image]).filter(Boolean);
   const [scaleAnim] = useState(new Animated.Value(1));
   const [heartScale] = useState(new Animated.Value(1));
+  const [imageLoaded, setImageLoaded] = useState(images.length === 0);
 
   const handlePress = () => {
     Animated.sequence([
@@ -75,8 +78,22 @@ const PropertyCard = ({ property, onPress, style }) => {
     );
   };
 
+  const handleImageLoad = () => {
+    console.log('PropertyCard image loaded:', property.id, images);
+    setImageLoaded(true);
+  };
+
+  const handleImageError = (error) => {
+    console.log('PropertyCard image error:', property.id, images, error?.nativeEvent?.error);
+    setImageLoaded(true);
+  };
+
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, style]}>
+    <View style={styles.cardWrapper}>
+      <Animated.View
+        style={[{ transform: [{ scale: scaleAnim }] }, style, { opacity: imageLoaded ? 1 : 0 }]}
+        pointerEvents={imageLoaded ? 'auto' : 'none'}
+      >
       <Swipeable
         renderRightActions={renderRightActions}
         renderLeftActions={renderLeftActions}
@@ -87,8 +104,10 @@ const PropertyCard = ({ property, onPress, style }) => {
         <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={1}>
           <View style={styles.imageWrapper}>
             <ImageCarousel
-              images={property.images || [property.image]}
+              images={images}
               height={180}
+              onImageLoad={handleImageLoad}
+              onImageError={handleImageError}
             />
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.3)']}
@@ -144,10 +163,26 @@ const PropertyCard = ({ property, onPress, style }) => {
         </TouchableOpacity>
       </Swipeable>
     </Animated.View>
+    {!imageLoaded && (
+      <View style={styles.skeletonOverlay}>
+        <PropertyCardSkeleton />
+      </View>
+    )}
+  </View>
   );
 };
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    position: 'relative',
+  },
+  skeletonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   container: {
     backgroundColor: colors.surface,
     borderRadius: 20,

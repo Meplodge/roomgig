@@ -175,7 +175,7 @@ const AddPropertyScreen = ({ navigation, route }) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
-        quality: 1,
+        quality: 0.9,
       });
 
       if (!result.canceled) {

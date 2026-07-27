@@ -32,14 +32,9 @@ const EmptyState = ({
       <Text style={styles.message}>{message}</Text>
       {actionText && onAction && (
         <TouchableOpacity style={styles.actionButton} onPress={onAction}>
-          <LinearGradient
-            colors={[colors.primary, '#2A5F4F']}
-            style={styles.buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.buttonInner}>
             <Text style={styles.actionText}>{actionText}</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       )}
     </View>
@@ -87,13 +82,9 @@ const styles = StyleSheet.create({
   actionButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: colors.primary,
   },
-  buttonGradient: {
+  buttonInner: {
     paddingHorizontal: 32,
     paddingVertical: 16,
     justifyContent: 'center',
