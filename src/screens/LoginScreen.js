@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: colors.primary,
     paddingVertical: 17,
-    borderRadius: 28,
+    borderRadius: 14,
     alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.7 },
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.primary,
     paddingVertical: 12,
-    borderRadius: 28,
+    borderRadius: 14,
     marginTop: 16,
   },
   googleIcon: {

@@ -1,6 +1,12 @@
 import { supabase } from '../utils/supabase';
 import { File } from 'expo-file-system';
 import { optimizeImage } from '../utils/imageOptimizer';
+import {
+  notifyPropertyListed,
+  notifyBookingRequest,
+  notifyNewMessage,
+  notifyRoommateListed,
+} from './email';
 
 // Read a local image file into a Uint8Array for upload.
 // On Android, fetch('file://...').arrayBuffer() intermittently throws
@@ -386,6 +392,20 @@ export const createProperty = async (propertyData, userId) => {
       }
     }
 
+    // Notify host that the listing is live (do not block on email failures)
+    try {
+      const host = await getProfileById(userId);
+      console.log('Sending property listed notification to:', host?.email);
+      await notifyPropertyListed({
+        hostEmail: host?.email,
+        propertyName: property.title,
+        city: property.city,
+        imageUrl: imageUrls[0]?.image_url,
+      });
+    } catch (emailError) {
+      console.warn('Property listed email notification failed:', emailError);
+    }
+
     return property;
   } catch (error) {
     console.error('Create property error:', error);
@@ -432,42 +452,6 @@ export const deleteProperty = async (propertyId) => {
 // Update property
 export const updateProperty = async (propertyId, propertyData, userId) => {
   try {
-    // Upload new images if provided
-    let imageUrls = [];
-    if (propertyData.images && propertyData.images.length > 0) {
-      for (let i = 0; i < propertyData.images.length; i++) {
-        const image = propertyData.images[i];
-        if (image.uri) {
-          const fileName = `${userId}/property_${Date.now()}_${i}.jpg`;
-          console.log('Optimizing + uploading updated image:', i + 1);
-
-          const optimizedUri = await optimizeImage(image.uri);
-          const uint8Array = await readImageBytes(optimizedUri);
-
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('property-images')
-            .upload(fileName, uint8Array, {
-              contentType: 'image/jpeg',
-              upsert: false,
-            });
-
-          if (uploadError) {
-            console.error('Image upload error:', uploadError);
-            throw new Error(`Failed to upload image: ${uploadError.message}`);
-          }
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('property-images')
-            .getPublicUrl(fileName);
-
-          imageUrls.push({
-            image_url: publicUrl,
-            is_primary: i === 0,
-          });
-        }
-      }
-    }
-
     // Update property
     const { data: property, error: propertyError } = await supabase
       .from('properties')
@@ -494,43 +478,90 @@ export const updateProperty = async (propertyId, propertyData, userId) => {
       throw new Error(`Failed to update property: ${propertyError.message}`);
     }
 
-    // Delete old images and insert new ones if provided
-    if (imageUrls.length > 0) {
-      // Delete old images
+    // Reconcile images: existing remote URLs are kept, new local URIs are uploaded,
+    // removed ones are deleted from storage, and the DB is rewritten to the final order.
+    if (Array.isArray(propertyData.images)) {
+      const finalImages = [];
+      const newImages = [];
+
+      for (let i = 0; i < propertyData.images.length; i++) {
+        const img = propertyData.images[i];
+        if (typeof img !== 'string') continue;
+
+        if (img.startsWith('http')) {
+          finalImages.push({ index: i, image_url: img, is_primary: i === 0 });
+        } else if (img.startsWith('file://') || img.startsWith('content://')) {
+          newImages.push({ index: i, uri: img });
+        }
+      }
+
+      // Upload new local images
+      for (const newImg of newImages) {
+        const fileName = `${userId}/property_${Date.now()}_${newImg.index}.jpg`;
+        const optimizedUri = await optimizeImage(newImg.uri);
+        const uint8Array = await readImageBytes(optimizedUri);
+
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(fileName, uint8Array, { contentType: 'image/jpeg', upsert: false });
+
+        if (uploadError) {
+          console.error('Image upload error:', uploadError);
+          throw new Error(`Failed to upload image: ${uploadError.message}`);
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(fileName);
+
+        finalImages.push({
+          index: newImg.index,
+          image_url: publicUrl,
+          is_primary: newImg.index === 0,
+        });
+      }
+
+      // Sort by original index so the primary flag matches the first slot
+      finalImages.sort((a, b) => a.index - b.index);
+      finalImages.forEach((img, i) => { img.is_primary = i === 0; });
+
+      // Fetch old image records
       const { data: oldImages } = await supabase
         .from('property_images')
         .select('image_url')
         .eq('property_id', propertyId);
 
-      if (oldImages && oldImages.length > 0) {
-        for (const oldImage of oldImages) {
-          const fileName = oldImage.image_url.split('/').pop();
-          await supabase.storage
-            .from('property-images')
-            .remove([fileName]);
+      const finalUrls = new Set(finalImages.map((img) => img.image_url));
+      const removedImages = (oldImages || []).filter((old) => !finalUrls.has(old.image_url));
+
+      // Delete removed images from storage
+      for (const removed of removedImages) {
+        const fileName = removed.image_url.split('/').pop();
+        try {
+          await supabase.storage.from('property-images').remove([fileName]);
+        } catch (e) {
+          console.warn('Could not remove storage object:', fileName, e);
         }
       }
 
-      // Delete old image records
-      await supabase
-        .from('property_images')
-        .delete()
-        .eq('property_id', propertyId);
+      // Delete old image records and insert the final list
+      await supabase.from('property_images').delete().eq('property_id', propertyId);
 
-      // Insert new images
-      const { error: imagesError } = await supabase
-        .from('property_images')
-        .insert(
-          imageUrls.map(img => ({
-            property_id: property.id,
-            image_url: img.image_url,
-            is_primary: img.is_primary,
-          }))
-        );
+      if (finalImages.length > 0) {
+        const { error: imagesError } = await supabase
+          .from('property_images')
+          .insert(
+            finalImages.map((img) => ({
+              property_id: propertyId,
+              image_url: img.image_url,
+              is_primary: img.is_primary,
+            }))
+          );
 
-      if (imagesError) {
-        console.error('Images insertion error:', imagesError);
-        throw new Error(`Failed to save property images: ${imagesError.message}`);
+        if (imagesError) {
+          console.error('Images insertion error:', imagesError);
+          throw new Error(`Failed to save property images: ${imagesError.message}`);
+        }
       }
     }
 
@@ -651,6 +682,32 @@ export const createBooking = async (bookingData) => {
     .single();
 
   if (error) throw error;
+
+  // Notify the property host about the new booking request
+  try {
+    const { data: property } = await supabase
+      .from('properties')
+      .select('title, host_id')
+      .eq('id', bookingData.property_id)
+      .single();
+
+    const [host, guest] = await Promise.all([
+      getProfileById(property?.host_id),
+      getProfileById(bookingData.user_id),
+    ]);
+
+    await notifyBookingRequest({
+      hostEmail: host?.email,
+      guestName: guest?.full_name,
+      propertyName: property?.title,
+      checkIn: bookingData.check_in_date,
+      checkOut: bookingData.check_out_date,
+      totalAmount: bookingData.total_amount,
+    });
+  } catch (emailError) {
+    console.warn('Booking request email notification failed:', emailError);
+  }
+
   return data;
 };
 
@@ -782,6 +839,18 @@ export const createRoommateListing = async (listingData, userId) => {
     if (listingError) {
       console.error('Roommate listing creation error:', listingError);
       throw new Error(`Failed to create roommate listing: ${listingError.message}`);
+    }
+
+    // Notify user that the new roommate listing is live (do not block on email failures)
+    try {
+      const user = await getProfileById(userId);
+      await notifyRoommateListed({
+        userEmail: user?.email,
+        listingTitle: listing.title,
+        city: listing.city,
+      });
+    } catch (emailError) {
+      console.warn('Roommate listing email notification failed:', emailError);
     }
 
     // Insert roommate images
@@ -1000,6 +1069,44 @@ export const sendMessage = async (conversationId, senderId, content) => {
     .single();
 
   if (error) throw error;
+
+  // Notify the message recipient by email (do not block on email failures)
+  try {
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('user_id, other_user_id, property_id')
+      .eq('id', conversationId)
+      .single();
+
+    if (conversation) {
+      const recipientId = conversation.user_id === senderId
+        ? conversation.other_user_id
+        : conversation.user_id;
+
+      const [recipient, sender] = await Promise.all([
+        getProfileById(recipientId),
+        getProfileById(senderId),
+      ]);
+
+      const { data: property } = conversation.property_id
+        ? await supabase
+            .from('properties')
+            .select('title')
+            .eq('id', conversation.property_id)
+            .single()
+        : { data: null };
+
+      await notifyNewMessage({
+        recipientEmail: recipient?.email,
+        senderName: sender?.full_name,
+        messagePreview: content,
+        propertyName: property?.title,
+      });
+    }
+  } catch (emailError) {
+    console.warn('New message email notification failed:', emailError);
+  }
+
   return data;
 };
 

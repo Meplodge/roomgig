@@ -1,0 +1,17 @@
+{
+  "name": "roomgig-email-notifications",
+  "version": "1.0.0",
+  "description": "Gmail SMTP email notification service for RoomGig",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --env-file=.env server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "nodemailer": "^6.10.0"
+  },
+  "private": true
+}

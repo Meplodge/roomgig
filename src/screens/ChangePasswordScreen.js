@@ -10,8 +10,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { useAuth } from '../context/AuthContext';
 
 const ChangePasswordScreen = ({ navigation }) => {
+  const { changePassword } = useAuth();
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -24,7 +26,7 @@ const ChangePasswordScreen = ({ navigation }) => {
     confirm: false,
   });
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -42,16 +44,20 @@ const ChangePasswordScreen = ({ navigation }) => {
 
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await changePassword(formData.newPassword);
+      setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       Alert.alert('Success', 'Password changed successfully!', [
         {
           text: 'OK',
           onPress: () => navigation.goBack(),
         },
       ]);
-    }, 1500);
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Could not change password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

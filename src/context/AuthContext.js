@@ -8,6 +8,7 @@ import {
   removeDeviceBinding,
   validateDeviceBinding,
 } from '../utils/deviceUtils';
+import { notifyWelcome, notifyPasswordChanged } from '../services/email';
 
 const AuthContext = createContext(null);
 
@@ -193,6 +194,13 @@ export const AuthProvider = ({ children }) => {
 
     if (error) throw error;
 
+    // Send welcome email (do not block sign-up on email failures)
+    try {
+      await notifyWelcome({ email, name });
+    } catch (emailError) {
+      console.warn('Welcome email failed:', emailError);
+    }
+
     // Device binding disabled
     // const deviceId = await getDeviceId();
     // await bindDeviceToAccount(data.user.id, deviceId);
@@ -234,6 +242,25 @@ export const AuthProvider = ({ children }) => {
     if (error) throw error;
   };
 
+  const changePassword = async (newPassword) => {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters.');
+    }
+
+    const { data: userData, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) throw error;
+
+    // Notify the user that their password changed
+    try {
+      await notifyPasswordChanged({ email: userData.user?.email });
+    } catch (emailError) {
+      console.warn('Password changed email notification failed:', emailError);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{ 
@@ -245,6 +272,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         resendConfirmationEmail,
         resetPassword,
+        changePassword,
         emailConfirmed,
         isAuthenticated: !!user,
         onboardingCompleted,
