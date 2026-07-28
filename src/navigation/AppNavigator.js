@@ -27,6 +27,7 @@ import HelpSupportScreen from '../screens/HelpSupportScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import ViewAllScreen from '../screens/ViewAllScreen';
 import BookWithFriendsScreen from '../screens/BookWithFriendsScreen';
 import RoommateFinderScreen from '../screens/RoommateFinderScreen';
@@ -80,6 +81,7 @@ const AppNavigator = () => {
             <Stack.Screen name="ChatList" component={ChatListScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
             <Stack.Screen name="ViewAll" component={ViewAllScreen} />
             <Stack.Screen name="BookWithFriends" component={BookWithFriendsScreen} />
             <Stack.Screen name="RoommateFinder" component={RoommateFinderScreen} />

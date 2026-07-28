@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,59 +6,44 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { useNotifications } from '../context/NotificationsContext';
 
 const NotificationsScreen = ({ navigation }) => {
-  const [notifications] = useState([
-    {
-      id: '1',
-      type: 'booking',
-      title: 'Booking Confirmed',
-      message: 'Your booking for Suncrest Manor has been confirmed for June 20-25, 2026',
-      time: '2 hours ago',
-      read: false,
-      image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=100',
-    },
-    {
-      id: '2',
-      type: 'message',
-      title: 'New Message',
-      message: 'Christopher Estate sent you a message about your booking inquiry',
-      time: '5 hours ago',
-      read: false,
-      image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    },
-    {
-      id: '3',
-      type: 'price',
-      title: 'Price Drop Alert',
-      message: 'Luxury 3BHK price has dropped by $2,000/month',
-      time: '1 day ago',
-      read: true,
-      image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=100',
-    },
-    {
-      id: '4',
-      type: 'review',
-      title: 'New Review',
-      message: 'Someone left a 5-star review on your property',
-      time: '2 days ago',
-      read: true,
-      image: 'https://randomuser.me/api/portraits/women/44.jpg',
-    },
-    {
-      id: '5',
-      type: 'system',
-      title: 'Payment Successful',
-      message: 'Your payment of $56,000 for Suncrest Manor has been processed',
-      time: '3 days ago',
-      read: true,
-      image: null,
-    },
-  ]);
+  const {
+    notifications,
+    loading,
+    refreshing,
+    refresh,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+  } = useNotifications();
+
+  // Format relative time
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
+  };
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -94,31 +79,79 @@ const NotificationsScreen = ({ navigation }) => {
     }
   };
 
-  const markAsRead = (id) => {
-    // In a real app, this would update the backend
-    console.log('Mark as read:', id);
-  };
-
-  const clearAll = () => {
-    // In a real app, this would clear all notifications
-    console.log('Clear all notifications');
-  };
-
-  const handleNotificationPress = (notification) => {
-    markAsRead(notification.id);
+  const handleNotificationPress = async (notification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      await markAsRead(notification.id);
+    }
     
-    if (notification.type === 'message') {
-      // Navigate to chat screen
-      navigation.navigate('Chat', {
-        chatId: notification.id,
-        userName: 'Christopher Estate',
-        userImage: notification.image,
-      });
-    } else if (notification.type === 'booking') {
-      // Navigate to booking history or property details
-      navigation.navigate('BookingHistory');
+    // Navigate based on notification type
+    const data = notification.data || {};
+    
+    switch (notification.type) {
+      case 'message':
+        if (data.conversationId || notification.conversation_id) {
+          navigation.navigate('Chat', {
+            conversationId: data.conversationId || notification.conversation_id,
+          });
+        }
+        break;
+      case 'booking':
+        if (data.bookingId || notification.booking_id) {
+          navigation.navigate('BookingHistory');
+        }
+        break;
+      case 'review':
+      case 'price':
+      case 'promotion':
+        if (data.propertyId || notification.property_id) {
+          navigation.navigate('PropertyDetails', {
+            propertyId: data.propertyId || notification.property_id,
+          });
+        }
+        break;
+      default:
+        break;
     }
   };
+
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to delete all notifications?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            await clearAll();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleMarkAllRead = async () => {
+    await markAllAsRead();
+  };
+
+  if (loading && notifications.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Notifications</Text>
+          <View style={styles.clearButton} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -127,14 +160,39 @@ const NotificationsScreen = ({ navigation }) => {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Notifications</Text>
-        <TouchableOpacity style={styles.clearButton} onPress={clearAll}>
-          <Text style={styles.clearButtonText}>Clear All</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {notifications.length > 0 && (
+            <TouchableOpacity style={styles.headerIconButton} onPress={handleClearAll}>
+              <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            style={styles.headerIconButton} 
+            onPress={() => navigation.navigate('NotificationSettings')}
+          >
+            <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {notifications.length > 0 && notifications.some(n => !n.is_read) && (
+        <TouchableOpacity style={styles.markAllReadButton} onPress={handleMarkAllRead}>
+          <Ionicons name="checkmark-done" size={18} color={colors.primary} />
+          <Text style={styles.markAllReadText}>Mark all as read</Text>
+        </TouchableOpacity>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
         {notifications.length === 0 ? (
           <View style={styles.emptyState}>
@@ -146,39 +204,35 @@ const NotificationsScreen = ({ navigation }) => {
           notifications.map((notification) => (
             <TouchableOpacity
               key={notification.id}
-              style={[styles.notificationItem, !notification.read && styles.unreadItem]}
+              style={[styles.notificationItem, !notification.is_read && styles.unreadItem]}
               onPress={() => handleNotificationPress(notification)}
             >
               <View style={styles.notificationIconContainer}>
-                {notification.image ? (
-                  <Image source={{ uri: notification.image }} style={styles.notificationImage} />
-                ) : (
-                  <View
-                    style={[
-                      styles.notificationIcon,
-                      { backgroundColor: getNotificationColor(notification.type) },
-                    ]}
-                  >
-                    <Ionicons
-                      name={getNotificationIcon(notification.type)}
-                      size={24}
-                      color={colors.surface}
-                    />
-                  </View>
-                )}
+                <View
+                  style={[
+                    styles.notificationIcon,
+                    { backgroundColor: getNotificationColor(notification.type) },
+                  ]}
+                >
+                  <Ionicons
+                    name={getNotificationIcon(notification.type)}
+                    size={24}
+                    color={colors.surface}
+                  />
+                </View>
               </View>
 
               <View style={styles.notificationContent}>
                 <View style={styles.notificationHeader}>
-                  <Text style={[styles.notificationTitle, !notification.read && styles.unreadTitle]}>
+                  <Text style={[styles.notificationTitle, !notification.is_read && styles.unreadTitle]}>
                     {notification.title}
                   </Text>
-                  {!notification.read && <View style={styles.unreadDot} />}
+                  {!notification.is_read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.notificationMessage} numberOfLines={2}>
                   {notification.message}
                 </Text>
-                <Text style={styles.notificationTime}>{notification.time}</Text>
+                <Text style={styles.notificationTime}>{formatTime(notification.created_at)}</Text>
               </View>
 
               <TouchableOpacity style={styles.notificationArrow}>
@@ -196,6 +250,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  markAllReadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 8,
+  },
+  markAllReadText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 6,
   },
   header: {
     flexDirection: 'row',
@@ -217,6 +293,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   clearButton: {
     paddingHorizontal: 12,

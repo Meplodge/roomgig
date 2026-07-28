@@ -99,10 +99,9 @@ const SettingsScreen = ({ navigation }) => {
       items: [
         {
           icon: 'notifications-outline',
-          label: 'Push Notifications',
-          type: 'switch',
-          value: notificationsEnabled,
-          onValueChange: toggleNotifications,
+          label: 'Notification Settings',
+          type: 'navigation',
+          route: 'NotificationSettings',
         },
         {
           icon: 'moon-outline',

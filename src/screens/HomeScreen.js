@@ -25,6 +25,7 @@ import FilterModal, { defaultFilters } from '../components/FilterModal';
 import EmptyState from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
+import { useNotifications } from '../context/NotificationsContext';
 import { filterProperties, countActiveFilters } from '../utils/filterProperties';
 import { parseSearchQuery, getSearchSuggestions } from '../utils/aiSearch';
 import { sendNotification } from '../services/notificationService';
@@ -34,6 +35,7 @@ const FILTERS_KEY = '@realestate_filters';
 const HomeScreen = ({ navigation }) => {
   const { propertiesList, loading } = useAppData();
   const { user, profile } = useAuth();
+  const { unreadCount } = useNotifications();
   const firstName = (user?.name || 'there').split(' ')[0];
   const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -233,7 +235,13 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Notifications')}>
               <Ionicons name="notifications-outline" size={22} color={colors.text} />
-              <View style={styles.notificationBadge} />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  {unreadCount <= 9 && (
+                    <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -434,12 +442,20 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 8,
+    right: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: colors.surface,
+    fontSize: 10,
+    fontWeight: '700',
   },
   filterContainer: {
     paddingHorizontal: 20,

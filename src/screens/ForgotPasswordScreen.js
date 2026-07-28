@@ -7,13 +7,19 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   ActivityIndicator,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
+
+const { height } = Dimensions.get('window');
+const AUTH_PRIMARY = '#2E8B57';
+const AUTH_IMAGE = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const { resetPassword } = useAuth();
@@ -37,58 +43,46 @@ const ForgotPasswordScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      {/* Full-width hero image with gradient overlay */}
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: AUTH_IMAGE }} style={styles.heroImage} resizeMode="cover" />
+        <LinearGradient
+          colors={['transparent', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.85)', colors.surface]}
+          locations={[0, 0.4, 0.7, 1]}
+          style={styles.gradient}
+        />
+      </View>
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
+        <View style={styles.content}>
+          <View style={styles.inner}>
+            <Text style={styles.title}>Forgot password?</Text>
 
-          <View style={styles.logoRow}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="home" size={22} color={colors.surface} />
-            </View>
-            <Text style={styles.logoText}>Estatery</Text>
-          </View>
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-          <Text style={styles.title}>Forgot Password?</Text>
-          <Text style={styles.subtitle}>
-            Enter your email address and we'll send you a link to reset your password.
-          </Text>
+            {success ? (
+              <View style={styles.successBox}>
+                <Ionicons name="checkmark-circle" size={16} color={AUTH_PRIMARY} />
+                <Text style={styles.successText}>
+                  Password reset email sent! Check your inbox.
+                </Text>
+              </View>
+            ) : null}
 
-          {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={16} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {success ? (
-            <View style={styles.successBox}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-              <Text style={styles.successText}>
-                Password reset email sent! Check your inbox.
-              </Text>
-            </View>
-          ) : null}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="you@email.com"
+                placeholder="Email address"
                 placeholderTextColor={colors.textLight}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -96,51 +90,57 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 onChangeText={setEmail}
               />
             </View>
+
+            <TouchableOpacity
+              style={[styles.button, submitting && styles.buttonDisabled]}
+              onPress={handleReset}
+              disabled={submitting}
+              activeOpacity={0.9}
+            >
+              {submitting ? (
+                <ActivityIndicator color={colors.surface} />
+              ) : (
+                <Text style={styles.buttonText}>Continue</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.backToLogin}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={styles.backToLoginText}>Back to Sign In</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[styles.button, submitting && styles.buttonDisabled]}
-            onPress={handleReset}
-            disabled={submitting}
-            activeOpacity={0.9}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.surface} />
-            ) : (
-              <Text style={styles.buttonText}>Send Reset Link</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.backToLogin}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.backToLoginText}>Back to Sign In</Text>
-          </TouchableOpacity>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40 },
-  backButton: { alignSelf: 'flex-start', marginBottom: 20 },
-  logoRow: { flexDirection: 'column', alignItems: 'center', marginBottom: 40 },
-  logoBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
+  container: { flex: 1, backgroundColor: colors.surface },
+  imageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.42,
   },
-  logoText: { fontSize: 22, fontWeight: '700', color: colors.text },
-  title: { fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 28, textAlign: 'center' },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '70%',
+  },
+  flex: { flex: 1 },
+  content: { flex: 1, justifyContent: 'center' },
+  inner: { paddingHorizontal: 28, paddingTop: 8, paddingBottom: 40, marginTop: 0 },
+  title: { fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 12 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -158,30 +158,29 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
   },
-  successText: { color: colors.primary, fontSize: 13, marginLeft: 8, flex: 1 },
-  field: { marginBottom: 18 },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
+  successText: { color: AUTH_PRIMARY, fontSize: 13, marginLeft: 8, flex: 1 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.background,
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    marginBottom: 18,
   },
-  input: { flex: 1, fontSize: 16, color: colors.text, marginLeft: 10 },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 16, color: colors.text },
   button: {
-    backgroundColor: colors.primary,
-    paddingVertical: 17,
-    borderRadius: 14,
+    backgroundColor: '#2E8B57',
+    paddingVertical: 18,
+    borderRadius: 28,
     alignItems: 'center',
+    marginBottom: 28,
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: colors.surface, fontSize: 17, fontWeight: '700' },
-  backToLogin: { alignSelf: 'center', marginTop: 28 },
-  backToLoginText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  backToLogin: { alignSelf: 'center' },
+  backToLoginText: { color: AUTH_PRIMARY, fontSize: 14, fontWeight: '600' },
 });
 
 export default ForgotPasswordScreen;

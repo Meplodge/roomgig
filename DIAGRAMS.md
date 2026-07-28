@@ -4,7 +4,7 @@ This document contains high-level diagrams for the RoomGig React Native / Expo r
 
 ---
 
-## 1. Architecture Overview
+## 1. c
 
 ```mermaid
 graph TB
@@ -382,3 +382,97 @@ graph LR
 | `ThemeContext` | Light / dark / system theme |
 | Screen state | Form inputs, modals, local UI state |
 
+
+---
+
+## 15. Testing Levels
+
+```mermaid
+graph TD
+    A[Unit Testing] --> B[Integration Testing]
+    B --> C[System Testing]
+    C --> D[User Acceptance Testing]
+    C --> E[Security Testing]
+```
+
+---
+
+## 16. Security Testing Flow
+
+```mermaid
+flowchart LR
+    A[Threat modelling] --> B[Static Application Security Testing]
+    B --> C[Dynamic Application Security Testing]
+    C --> D[Dependency vulnerability scan]
+    D --> E[Secrets & key audit]
+    E --> F[Remediate & re-test]
+```
+
+---
+
+## 17. Deployment Pipeline
+
+```mermaid
+flowchart LR
+    A[Developer pushes to Git] --> B[CI: lint, type-check, unit tests]
+    B --> C[Integration tests on test DB]
+    C --> D[EAS Build preview]
+    D --> E[QA / UAT]
+    E --> F[EAS Build production]
+    F --> G[App Store / Play Store]
+    G --> H[EAS Update for hot-fixes]
+```
+
+---
+
+## 18. Testing Methods Overview
+
+```mermaid
+graph TD
+    A[Testing Methods] --> B[Unit Testing]
+    A --> C[Integration Testing]
+    A --> D[System Testing]
+```
+
+---
+
+## 19. Unit Testing Scope
+
+```mermaid
+graph LR
+    subgraph Unit Testing Scope
+        A[Authentication]
+        B[Property Listings]
+        C[Booking Management]
+        D[Messaging]
+        E[AI Recommendations]
+    end
+    F[Jest + RN Testing Library] --> A
+    F --> B
+    F --> C
+    F --> D
+    F --> E
+```
+
+---
+
+## 20. Integration Testing Examples
+
+```mermaid
+graph LR
+    A[Authentication Module] -->|signIn / signUp| DB[(User Database)]
+    B[Booking Module] -->|create booking| P[Payment Gateway]
+    C[AI Recommendation Engine] -->|fetch ranked listings| L[Property Listings Module]
+```
+
+---
+
+## 21. System Testing Areas
+
+```mermaid
+graph TD
+    ST[System Testing] --> F[Functional Testing]
+    ST --> S[Security Testing]
+    ST --> P[Performance Testing]
+    ST --> U[Usability / UX Testing]
+```

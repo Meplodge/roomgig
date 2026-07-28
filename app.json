@@ -17,6 +17,9 @@
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -50,7 +53,15 @@
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to set property locations."
         }
       ],
-      "expo-ondevice-ai"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2563EB",
+          "sounds": [],
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "extra": {
       "eas": {

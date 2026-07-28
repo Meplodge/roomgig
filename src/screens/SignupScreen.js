@@ -7,13 +7,20 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   ActivityIndicator,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
+import googleLogo from '../../assets/google.png';
+
+const { height } = Dimensions.get('window');
+const AUTH_PRIMARY = '#2E8B57';
+const AUTH_IMAGE = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800';
 
 const SignupScreen = ({ navigation }) => {
   const { signup } = useAuth();
@@ -43,58 +50,50 @@ const SignupScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      {/* Full-width hero image with gradient overlay */}
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: AUTH_IMAGE }} style={styles.heroImage} resizeMode="cover" />
+        <LinearGradient
+          colors={['transparent', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.85)', colors.surface]}
+          locations={[0, 0.4, 0.7, 1]}
+          style={styles.gradient}
+        />
+      </View>
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <View
+          style={styles.content}
         >
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
-          </TouchableOpacity>
+          <View style={styles.inner}>
+            <Text style={styles.title}>Sign Up</Text>
 
-          <View style={styles.logoRow}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="home" size={22} color={colors.surface} />
-            </View>
-            <Text style={styles.logoText}>Estatery</Text>
-          </View>
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-          <Text style={styles.title}>Create account</Text>
-          <Text style={styles.subtitle}>Join us to find your perfect property</Text>
-
-          {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={16} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Full Name</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Your name"
+                placeholder="Full name"
                 placeholderTextColor={colors.textLight}
                 value={name}
                 onChangeText={setName}
               />
             </View>
-          </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="you@email.com"
+                placeholder="Email address"
                 placeholderTextColor={colors.textLight}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -102,15 +101,12 @@ const SignupScreen = ({ navigation }) => {
                 onChangeText={setEmail}
               />
             </View>
-          </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="At least 6 characters"
+                placeholder="Password"
                 placeholderTextColor={colors.textLight}
                 secureTextEntry={!showPassword}
                 value={password}
@@ -124,15 +120,12 @@ const SignupScreen = ({ navigation }) => {
                 />
               </TouchableOpacity>
             </View>
-          </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Confirm your password"
+                placeholder="Confirm password"
                 placeholderTextColor={colors.textLight}
                 secureTextEntry={!showConfirmPassword}
                 value={confirmPassword}
@@ -146,59 +139,75 @@ const SignupScreen = ({ navigation }) => {
                 />
               </TouchableOpacity>
             </View>
-          </View>
 
-          <TouchableOpacity
-            style={[styles.button, submitting && styles.buttonDisabled]}
-            onPress={handleSignup}
-            disabled={submitting}
-            activeOpacity={0.9}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.surface} />
-            ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.footerLink}>Sign In</Text>
+            <TouchableOpacity
+              style={[styles.button, submitting && styles.buttonDisabled]}
+              onPress={handleSignup}
+              disabled={submitting}
+              activeOpacity={0.9}
+            >
+              {submitting ? (
+                <ActivityIndicator color={colors.surface} />
+              ) : (
+                <Text style={styles.buttonText}>Continue</Text>
+              )}
             </TouchableOpacity>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Or sign up with</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.socialRow}>
+              <TouchableOpacity style={styles.socialButton} onPress={() => console.log('Google Sign Up')} activeOpacity={0.9}>
+                <Image source={googleLogo} style={styles.socialLogo} />
+                <Text style={styles.socialText}>Google</Text>
+              </TouchableOpacity>
+              <View style={{ width: 12 }} />
+              <TouchableOpacity style={styles.socialButton} onPress={() => console.log('Apple Sign Up')} activeOpacity={0.9}>
+                <Ionicons name="logo-apple" size={22} color={colors.text} />
+                <Text style={styles.socialText}>Apple</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Text style={styles.footerLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.surface },
+  imageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.42,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '70%',
+  },
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 10, paddingBottom: 40 },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  logoRow: { flexDirection: 'column', alignItems: 'center', marginBottom: 24 },
-  logoBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  logoText: { fontSize: 22, fontWeight: '700', color: colors.text },
-  title: { fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 28, textAlign: 'center' },
+  content: { flex: 1, justifyContent: 'center' },
+  inner: { paddingHorizontal: 28, paddingTop: 8, marginTop: 0 },
+  title: { fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 32 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,31 +217,46 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: { color: colors.error, fontSize: 13, marginLeft: 8, flex: 1 },
-  field: { marginBottom: 18 },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.background,
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    marginBottom: 18,
   },
-  input: { flex: 1, fontSize: 16, color: colors.text, marginLeft: 10 },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 16, color: colors.text },
   button: {
-    backgroundColor: colors.primary,
-    paddingVertical: 17,
-    borderRadius: 14,
+    backgroundColor: '#2E8B57',
+    paddingVertical: 18,
+    borderRadius: 28,
     alignItems: 'center',
-    marginTop: 10,
+    marginBottom: 24,
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: colors.surface, fontSize: 17, fontWeight: '700' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { marginHorizontal: 12, color: colors.textSecondary, fontSize: 13 },
+  socialRow: { flexDirection: 'row', marginBottom: 24 },
+  socialButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 28,
+    paddingVertical: 14,
+  },
+  socialLogo: { width: 22, height: 22, resizeMode: 'contain', marginRight: 8 },
+  socialText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerText: { color: colors.textSecondary, fontSize: 14 },
-  footerLink: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  footerLink: { color: AUTH_PRIMARY, fontSize: 14, fontWeight: '700' },
 });
 
 export default SignupScreen;

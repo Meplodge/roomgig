@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { AppDataProvider } from './context/AppDataContext';
 import { MessagesProvider } from './context/MessagesContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { NotificationsProvider } from './context/NotificationsContext';
 import SplashScreen from './screens/SplashScreen';
 import { requestNotificationPermissions, setupNotificationListeners } from './services/notificationService';
 
@@ -43,14 +44,16 @@ export default function AppShell() {
         <AuthProvider>
           <AppDataProvider>
             <MessagesProvider>
-              {isSplashVisible ? (
-                <SplashScreen onFinish={handleSplashFinish} />
-              ) : (
-                <>
-                  <AppNavigator />
-                  <StatusBar style="auto" />
-                </>
-              )}
+              <NotificationsProvider>
+                {isSplashVisible ? (
+                  <SplashScreen onFinish={handleSplashFinish} />
+                ) : (
+                  <>
+                    <AppNavigator />
+                    <StatusBar style="auto" />
+                  </>
+                )}
+              </NotificationsProvider>
             </MessagesProvider>
           </AppDataProvider>
         </AuthProvider>
