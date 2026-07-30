@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { colors, surfaceGradient } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 
 const { height } = Dimensions.get('window');
@@ -48,7 +48,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
       <View style={styles.imageContainer}>
         <Image source={{ uri: AUTH_IMAGE }} style={styles.heroImage} resizeMode="cover" />
         <LinearGradient
-          colors={['transparent', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.85)', colors.surface]}
+          colors={surfaceGradient}
           locations={[0, 0.4, 0.7, 1]}
           style={styles.gradient}
         />
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: 28,
+    borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 10,
     marginBottom: 18,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#2E8B57',
     paddingVertical: 18,
-    borderRadius: 28,
+    borderRadius: 20,
     alignItems: 'center',
     marginBottom: 28,
   },

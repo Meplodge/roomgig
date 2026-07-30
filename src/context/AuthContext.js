@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking } from 'react-native';
 import { supabase } from '../utils/supabase';
 import {
   getDeviceId,
@@ -242,6 +243,53 @@ export const AuthProvider = ({ children }) => {
     if (error) throw error;
   };
 
+  const signInWithGoogle = async () => {
+    const redirectTo = 'com.realestate.app://auth/callback';
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+
+    if (error) throw error;
+    if (!data?.url) throw new Error('Could not start Google sign in.');
+
+    return new Promise((resolve, reject) => {
+      let timeout;
+
+      const handleUrl = async (event) => {
+        if (!event.url.startsWith(redirectTo)) return;
+
+        subscription.remove();
+        clearTimeout(timeout);
+
+        const match = event.url.match(/[?&]code=([^&]+)/);
+        const code = match ? decodeURIComponent(match[1]) : null;
+        if (!code) {
+          reject(new Error('Google sign in did not return an authorization code.'));
+          return;
+        }
+
+        const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) reject(exchangeError);
+        else resolve(sessionData.session);
+      };
+
+      const subscription = Linking.addEventListener('url', handleUrl);
+
+      timeout = setTimeout(() => {
+        subscription.remove();
+        reject(new Error('Google sign in timed out.'));
+      }, 120000);
+
+      Linking.openURL(data.url).catch((openError) => {
+        subscription.remove();
+        clearTimeout(timeout);
+        reject(openError);
+      });
+    });
+  };
+
   const changePassword = async (newPassword) => {
     if (!newPassword || newPassword.length < 6) {
       throw new Error('Password must be at least 6 characters.');
@@ -280,6 +328,7 @@ export const AuthProvider = ({ children }) => {
         loadProfile,
         needsProfileUpdate,
         markProfileComplete,
+        signInWithGoogle,
       }}
     >
       {children}
@@ -300,6 +349,7 @@ export const useAuth = () => {
       logout: async () => {},
       resendConfirmationEmail: async () => { throw new Error('Auth not available'); },
       resetPassword: async () => { throw new Error('Auth not available'); },
+      signInWithGoogle: async () => { throw new Error('Auth not available'); },
       emailConfirmed: true,
       isAuthenticated: false,
       onboardingCompleted: false,

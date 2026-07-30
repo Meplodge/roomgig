@@ -44,3 +44,25 @@ export const getColors = (scheme) => (scheme === 'dark' ? darkColors : lightColo
 // build their StyleSheet once at import time, this makes the whole app follow the
 // system (device) light/dark setting on launch without per-screen refactors.
 export const colors = getColors(Appearance.getColorScheme());
+
+const hexToRgb = (hex) => {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const int = parseInt(full, 16);
+  return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
+};
+
+// Theme-aware vertical gradient that fades from transparent into the current
+// surface color. Used as an overlay on top of hero images so the fade matches
+// light/dark mode automatically.
+export const getSurfaceGradient = (palette = colors) => {
+  const [r, g, b] = hexToRgb(palette.surface);
+  return [
+    `rgba(${r},${g},${b},0)`,
+    `rgba(${r},${g},${b},0.3)`,
+    `rgba(${r},${g},${b},0.85)`,
+    palette.surface,
+  ];
+};
+
+export const surfaceGradient = getSurfaceGradient(colors);

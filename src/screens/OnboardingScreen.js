@@ -8,11 +8,12 @@ import {
   Dimensions,
   FlatList,
   StatusBar,
+  Appearance,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { colors, surfaceGradient } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
@@ -21,30 +22,37 @@ const slides = [
   {
     id: '1',
     title: 'Find Your\nDream Home',
-    subtitle: '2500+ Properties available',
-    subtitleIcon: 'home',
+    subtitle: 'Discover verified listings, modern spaces,\nand flexible rentals tailored to your lifestyle\nall in one simple app.',
+    subtitleIcon: null,
     image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800',
   },
   {
     id: '2',
     title: 'Book Viewings\nInstantly',
-    subtitle: 'Trusted by 2500+ happy tenants',
-    subtitleIcon: 'shield-checkmark',
+    subtitle: 'Schedule tours with just a few taps,\nchoose times that work for you,\nand visit spaces without the hassle.',
+    subtitleIcon: null,
     image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800',
   },
   {
     id: '3',
     title: 'Smart Search\n& AI Matching',
-    subtitle: 'AI-powered recommendations just for you',
-    subtitleIcon: 'sparkles',
+    subtitle: 'Set your filters and let smart tools\nsurface listings that match your needs,\nbudget, and neighborhood.',
+    subtitleIcon: null,
     image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800',
   },
   {
     id: '4',
     title: 'Move In\nWith Ease',
-    subtitle: 'Find and rent properties anytime, anywhere',
-    subtitleIcon: 'key',
+    subtitle: 'From application to approval, manage\nevery step in the app and get\nready to call your new place home.',
+    subtitleIcon: null,
     image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800',
+  },
+  {
+    id: '5',
+    title: 'Find Roommates\nTo Share With',
+    subtitle: 'Browse like-minded people looking for\nshared spaces, split the rent, and\nturn a house into a home together.',
+    subtitleIcon: null,
+    image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
   },
 ];
 
@@ -100,7 +108,7 @@ const OnboardingScreen = ({ navigation }) => {
         
         {/* Gradient starting from middle */}
         <LinearGradient
-          colors={['transparent', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.85)', '#FFFFFF']}
+          colors={surfaceGradient}
           locations={[0, 0.4, 0.7, 1]}
           style={styles.gradient}
         />
@@ -118,7 +126,9 @@ const OnboardingScreen = ({ navigation }) => {
         <Text style={styles.title}>{item.title}</Text>
         
         <View style={styles.subtitleRow}>
-          <Ionicons name={item.subtitleIcon} size={16} color={colors.accent} />
+          {item.subtitleIcon && (
+            <Ionicons name={item.subtitleIcon} size={16} color={colors.accent} />
+          )}
           <Text style={styles.subtitle}>{item.subtitle}</Text>
         </View>
       </View>
@@ -127,7 +137,7 @@ const OnboardingScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={Appearance.getColorScheme() === 'dark' ? 'light-content' : 'dark-content'} />
       
       {/* Progress bar at top */}
       {renderProgressBar()}
@@ -164,7 +174,7 @@ const OnboardingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   progressContainer: {
     position: 'absolute',
@@ -209,13 +219,13 @@ const styles = StyleSheet.create({
     zIndex: 10,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: colors.surface,
     borderRadius: 20,
   },
   skipText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: colors.text,
   },
   contentContainer: {
     flex: 0.35,
@@ -226,7 +236,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: colors.text,
     textAlign: 'center',
     lineHeight: 40,
     letterSpacing: -0.5,
@@ -239,14 +249,16 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#7A7A7A',
+    color: colors.textSecondary,
     fontWeight: '500',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   bottomSection: {
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   button: {
     backgroundColor: '#2E8B57',

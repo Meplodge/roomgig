@@ -424,10 +424,11 @@ export const deleteProperty = async (propertyId) => {
 
     if (images && images.length > 0) {
       for (const image of images) {
-        const fileName = image.image_url.split('/').pop();
+        const urlParts = image.image_url.split('/property-images/');
+        const filePath = urlParts.length > 1 ? urlParts[1] : image.image_url.split('/').pop();
         await supabase.storage
           .from('property-images')
-          .remove([fileName]);
+          .remove([filePath]);
       }
     }
 
@@ -536,11 +537,12 @@ export const updateProperty = async (propertyId, propertyData, userId) => {
 
       // Delete removed images from storage
       for (const removed of removedImages) {
-        const fileName = removed.image_url.split('/').pop();
+        const urlParts = removed.image_url.split('/property-images/');
+        const filePath = urlParts.length > 1 ? urlParts[1] : removed.image_url.split('/').pop();
         try {
-          await supabase.storage.from('property-images').remove([fileName]);
+          await supabase.storage.from('property-images').remove([filePath]);
         } catch (e) {
-          console.warn('Could not remove storage object:', fileName, e);
+          console.warn('Could not remove storage object:', filePath, e);
         }
       }
 

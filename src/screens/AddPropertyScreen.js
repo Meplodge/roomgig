@@ -28,7 +28,8 @@ import { createProperty, updateProperty, getFacilities } from '../services/supab
 const AddPropertyScreen = ({ navigation, route }) => {
   const { addBooking, addProperty, refreshProperties } = useAppData();
   const { user } = useAuth();
-  const { property, isEditing } = route.params || {};
+  const property = route.params?.property;
+  const isEditing = route.params?.isEditing || !!property?.id;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
@@ -228,14 +229,14 @@ const AddPropertyScreen = ({ navigation, route }) => {
         beds: parseInt(formData.beds),
         baths: parseInt(formData.baths),
         sqft: parseInt(formData.sqft) || 0,
-        images: images.length > 0 ? images : undefined,
+        images,
         description: formData.description,
         facilities: selectedFacilities,
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude,
       };
 
-      if (isEditing) {
+      if (isEditing && property?.id) {
         await updateProperty(property.id, propertyData, user.id);
         await refreshProperties();
         setShowSuccessModal(true);
@@ -512,7 +513,7 @@ const AddPropertyScreen = ({ navigation, route }) => {
           {loading ? (
             <ActivityIndicator color={colors.surface} />
           ) : (
-            <Text style={styles.submitButtonText}>Add Property</Text>
+            <Text style={styles.submitButtonText}>{isEditing ? 'Save Changes' : 'Add Property'}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

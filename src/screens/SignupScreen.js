@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { colors, surfaceGradient } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import googleLogo from '../../assets/google.png';
 
@@ -23,7 +23,7 @@ const AUTH_PRIMARY = '#2E8B57';
 const AUTH_IMAGE = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800';
 
 const SignupScreen = ({ navigation }) => {
-  const { signup } = useAuth();
+  const { signup, signInWithGoogle } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +32,7 @@ const SignupScreen = ({ navigation }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSignup = async () => {
     setError('');
@@ -49,13 +50,25 @@ const SignupScreen = ({ navigation }) => {
     }
   };
 
+  const handleGoogleSignUp = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Full-width hero image with gradient overlay */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: AUTH_IMAGE }} style={styles.heroImage} resizeMode="cover" />
         <LinearGradient
-          colors={['transparent', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.85)', colors.surface]}
+          colors={surfaceGradient}
           locations={[0, 0.4, 0.7, 1]}
           style={styles.gradient}
         />
@@ -160,7 +173,7 @@ const SignupScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.socialRow}>
-              <TouchableOpacity style={styles.socialButton} onPress={() => console.log('Google Sign Up')} activeOpacity={0.9}>
+              <TouchableOpacity style={[styles.socialButton, googleLoading && { opacity: 0.7 }]} onPress={handleGoogleSignUp} disabled={googleLoading} activeOpacity={0.9}>
                 <Image source={googleLogo} style={styles.socialLogo} />
                 <Text style={styles.socialText}>Google</Text>
               </TouchableOpacity>
@@ -221,7 +234,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: 28,
+    borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 10,
     marginBottom: 18,
@@ -231,7 +244,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#2E8B57',
     paddingVertical: 18,
-    borderRadius: 28,
+    borderRadius: 20,
     alignItems: 'center',
     marginBottom: 24,
   },
@@ -249,7 +262,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 28,
+    borderRadius: 20,
     paddingVertical: 14,
   },
   socialLogo: { width: 22, height: 22, resizeMode: 'contain', marginRight: 8 },
