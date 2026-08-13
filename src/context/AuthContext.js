@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
 import { supabase } from '../utils/supabase';
+import { getCurrentUserProfile } from '../services/supabaseApi';
 import {
   getDeviceId,
   bindDeviceToAccount,
@@ -43,7 +44,13 @@ export const AuthProvider = ({ children }) => {
         };
         setUser(userData);
         setEmailConfirmed(session.user.email_confirmed_at !== null);
-        await loadProfile(session.user.id);
+        try {
+          await loadProfile();
+        } catch (e) {
+          // Suspended users are already signed out by getCurrentUserProfile.
+          setUser(null);
+          setProfile(null);
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
@@ -56,32 +63,29 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  const loadProfile = async (userId) => {
+  const loadProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const data = await getCurrentUserProfile();
 
       console.log('Profile data loaded:', data);
       console.log('Profile avatar_url:', data?.avatar_url);
 
-      if (data && !error) {
-        setProfile(data);
-        // Always update user avatar from profile (even if profile avatar is null, to clear old avatar)
-        console.log('Updating user avatar from profile:', data.avatar_url);
-        setUser(prev => ({ ...prev, avatar: data.avatar_url }));
-        
-        // Check if this is first login and profile needs update
-        const firstLoginCompleted = await AsyncStorage.getItem(FIRST_LOGIN_KEY);
-        if (!firstLoginCompleted) {
-          const needsUpdate = !data.phone || !data.full_name || data.full_name === data.email?.split('@')[0];
-          setNeedsProfileUpdate(needsUpdate);
-        }
+      setProfile(data);
+      // Always update user avatar from profile (even if profile avatar is null, to clear old avatar)
+      console.log('Updating user avatar from profile:', data.avatar_url);
+      setUser(prev => ({ ...prev, avatar: data.avatar_url }));
+
+      // Check if this is first login and profile needs update
+      const firstLoginCompleted = await AsyncStorage.getItem(FIRST_LOGIN_KEY);
+      if (!firstLoginCompleted) {
+        const needsUpdate = !data.phone || !data.full_name || data.full_name === data.email?.split('@')[0];
+        setNeedsProfileUpdate(needsUpdate);
       }
     } catch (e) {
       console.error('Error loading profile:', e);
+      setUser(null);
+      setProfile(null);
+      throw e;
     }
   };
 
@@ -96,7 +100,11 @@ export const AuthProvider = ({ children }) => {
           avatar: session.user.user_metadata?.avatar_url,
         };
         setUser(userData);
-        await loadProfile(session.user.id);
+        try {
+          await loadProfile();
+        } catch (e) {
+          // loadProfile already logs and signs the user out if suspended.
+        }
       }
     } catch (e) {
       console.error('Error loading user:', e);
@@ -155,6 +163,10 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (error) throw error;
+
+    // Enforce suspension before returning the user; this will sign the user out
+    // and throw a suspension message if their profile is suspended.
+    await loadProfile();
 
     // Device binding disabled
     // const deviceId = await getDeviceId();

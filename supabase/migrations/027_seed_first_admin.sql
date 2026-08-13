@@ -1,0 +1,32 @@
+-- ============================================================================
+-- Seed the first dashboard admin
+-- ============================================================================
+-- The dashboard authenticates admins through Supabase Auth, so an admin must
+-- exist in auth.users BEFORE they can be added to admin_users.
+--
+-- OPTION A (recommended) - let the bootstrap script do everything, including
+-- creating the auth user and setting a password:
+--
+--     cd admin-api
+--     npm install
+--     cp .env.example .env      # fill in SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+--     node scripts/create-admin.js you@example.com "Your Name"
+--
+-- OPTION B - you already have a Supabase Auth user (e.g. you signed up in the
+-- mobile app, or created one in the Supabase dashboard under Authentication >
+-- Users). Uncomment the block below, replace the email, and run this migration.
+--
+-- Intentionally left commented out so `supabase db push` never fails on a
+-- missing user and no placeholder admin is created by accident.
+-- ============================================================================
+
+-- INSERT INTO public.admin_users (auth_user_id, email, full_name, role, is_active)
+-- SELECT u.id, u.email, COALESCE(u.raw_user_meta_data->>'full_name', 'Platform Owner'), 'super_admin', TRUE
+-- FROM auth.users u
+-- WHERE lower(u.email) = lower('you@example.com')
+-- ON CONFLICT (auth_user_id) DO UPDATE
+--   SET role = 'super_admin',
+--       is_active = TRUE;
+
+-- Verify afterwards with:
+--   SELECT email, role, is_active, created_at FROM public.admin_users;

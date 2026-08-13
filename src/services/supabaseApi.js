@@ -8,6 +8,29 @@ import {
   notifyRoommateListed,
 } from './email';
 
+/**
+ * Fetches the current user's profile and enforces any active suspension.
+ * This is the single source of truth for the "suspended at login / session" check.
+ * If the user is suspended, we sign them out immediately and throw a clear error.
+ */
+export const getCurrentUserProfile = async () => {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.user) throw new Error('No active session');
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+
+  if (error) throw error;
+  if (data?.is_suspended) {
+    await supabase.auth.signOut();
+    throw new Error(data.suspension_reason ? `Account suspended: ${data.suspension_reason}` : 'Your account has been suspended. Please contact support.');
+  }
+  return data;
+};
+
 // Read a local image file into a Uint8Array for upload.
 // On Android, fetch('file://...').arrayBuffer() intermittently throws
 // "Network request failed"; reading bytes natively via expo-file-system
