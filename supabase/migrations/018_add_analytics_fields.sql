@@ -26,6 +26,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for favorite count updates
+DROP TRIGGER IF EXISTS update_favorite_count_on_favorites ON favorites;
 CREATE TRIGGER update_favorite_count_on_favorites
 AFTER INSERT OR DELETE ON favorites
 FOR EACH ROW EXECUTE FUNCTION update_property_favorite_count();
@@ -86,6 +87,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for inquiry count updates
+DROP TRIGGER IF EXISTS update_inquiry_count_on_inquiry ON property_inquiries;
 CREATE TRIGGER update_inquiry_count_on_inquiry
 AFTER INSERT ON property_inquiries
 FOR EACH ROW EXECUTE FUNCTION update_property_inquiry_count();

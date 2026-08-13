@@ -2,8 +2,9 @@
 DROP POLICY IF EXISTS "Hosts can insert images for own properties" ON property_images;
 
 -- Create new policy with authenticated role
+DROP POLICY IF EXISTS "Hosts can insert images for own properties" ON property_images;
 CREATE POLICY "Hosts can insert images for own properties"
-ON property_images FOR INSERT
+  ON property_images FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (

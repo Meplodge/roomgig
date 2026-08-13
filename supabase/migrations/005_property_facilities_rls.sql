@@ -1,6 +1,7 @@
 -- Allow authenticated users to insert facilities for their own properties
+DROP POLICY IF EXISTS "Hosts can insert property facilities" ON property_facilities;
 CREATE POLICY "Hosts can insert property facilities"
-ON property_facilities FOR INSERT
+  ON property_facilities FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (
@@ -11,8 +12,9 @@ WITH CHECK (
 );
 
 -- Allow authenticated users to delete facilities from their own properties
+DROP POLICY IF EXISTS "Hosts can delete property facilities" ON property_facilities;
 CREATE POLICY "Hosts can delete property facilities"
-ON property_facilities FOR DELETE
+  ON property_facilities FOR DELETE
 TO authenticated
 USING (
   EXISTS (

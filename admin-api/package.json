@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --env-file=.env src/index.js",
-    "create-admin": "node --env-file=.env scripts/create-admin.js"
+    "create-admin": "node --env-file=.env scripts/create-admin.js",
+    "reset-admin-password": "node --env-file=.env scripts/reset-admin-password.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

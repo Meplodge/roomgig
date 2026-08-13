@@ -129,23 +129,27 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see their own push tokens
+DROP POLICY IF EXISTS "Users can view own push tokens" ON push_tokens;
 CREATE POLICY "Users can view own push tokens"
-    ON push_tokens FOR SELECT
+  ON push_tokens FOR SELECT
     USING (auth.uid() = user_id);
 
 -- Users can insert their own push tokens
+DROP POLICY IF EXISTS "Users can insert own push tokens" ON push_tokens;
 CREATE POLICY "Users can insert own push tokens"
-    ON push_tokens FOR INSERT
+  ON push_tokens FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own push tokens
+DROP POLICY IF EXISTS "Users can update own push tokens" ON push_tokens;
 CREATE POLICY "Users can update own push tokens"
-    ON push_tokens FOR UPDATE
+  ON push_tokens FOR UPDATE
     USING (auth.uid() = user_id);
 
 -- Users can delete their own push tokens
+DROP POLICY IF EXISTS "Users can delete own push tokens" ON push_tokens;
 CREATE POLICY "Users can delete own push tokens"
-    ON push_tokens FOR DELETE
+  ON push_tokens FOR DELETE
     USING (auth.uid() = user_id);
 
 -- ============================================================================

@@ -640,71 +640,103 @@ ALTER TABLE public.search_history ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
 DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
-CREATE POLICY "Users can view all profiles" ON public.profiles
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
+CREATE POLICY "Users can view all profiles"
+  ON public.profiles
     FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile"
+  ON public.profiles
     FOR UPDATE USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-CREATE POLICY "Users can insert own profile" ON public.profiles
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile"
+  ON public.profiles
     FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Device bindings policies
 DROP POLICY IF EXISTS "Users can view own device bindings" ON public.device_bindings;
-CREATE POLICY "Users can view own device bindings" ON public.device_bindings
+DROP POLICY IF EXISTS "Users can view own device bindings" ON public.device_bindings;
+CREATE POLICY "Users can view own device bindings"
+  ON public.device_bindings
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert own device bindings" ON public.device_bindings;
-CREATE POLICY "Users can insert own device bindings" ON public.device_bindings
+DROP POLICY IF EXISTS "Users can insert own device bindings" ON public.device_bindings;
+CREATE POLICY "Users can insert own device bindings"
+  ON public.device_bindings
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own device bindings" ON public.device_bindings;
-CREATE POLICY "Users can update own device bindings" ON public.device_bindings
+DROP POLICY IF EXISTS "Users can update own device bindings" ON public.device_bindings;
+CREATE POLICY "Users can update own device bindings"
+  ON public.device_bindings
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- User preferences policies
 DROP POLICY IF EXISTS "Users can view own preferences" ON public.user_preferences;
-CREATE POLICY "Users can view own preferences" ON public.user_preferences
+DROP POLICY IF EXISTS "Users can view own preferences" ON public.user_preferences;
+CREATE POLICY "Users can view own preferences"
+  ON public.user_preferences
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert own preferences" ON public.user_preferences;
-CREATE POLICY "Users can insert own preferences" ON public.user_preferences
+DROP POLICY IF EXISTS "Users can insert own preferences" ON public.user_preferences;
+CREATE POLICY "Users can insert own preferences"
+  ON public.user_preferences
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own preferences" ON public.user_preferences;
-CREATE POLICY "Users can update own preferences" ON public.user_preferences
+DROP POLICY IF EXISTS "Users can update own preferences" ON public.user_preferences;
+CREATE POLICY "Users can update own preferences"
+  ON public.user_preferences
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Properties policies
 DROP POLICY IF EXISTS "Anyone can view active properties" ON public.properties;
-CREATE POLICY "Anyone can view active properties" ON public.properties
+DROP POLICY IF EXISTS "Anyone can view active properties" ON public.properties;
+CREATE POLICY "Anyone can view active properties"
+  ON public.properties
     FOR SELECT USING (status = 'active' AND deleted_at IS NULL);
 
 DROP POLICY IF EXISTS "Hosts can view own properties" ON public.properties;
-CREATE POLICY "Hosts can view own properties" ON public.properties
+DROP POLICY IF EXISTS "Hosts can view own properties" ON public.properties;
+CREATE POLICY "Hosts can view own properties"
+  ON public.properties
     FOR SELECT USING (auth.uid() = host_id);
 
 DROP POLICY IF EXISTS "Hosts can insert properties" ON public.properties;
-CREATE POLICY "Hosts can insert properties" ON public.properties
+DROP POLICY IF EXISTS "Hosts can insert properties" ON public.properties;
+CREATE POLICY "Hosts can insert properties"
+  ON public.properties
     FOR INSERT WITH CHECK (auth.uid() = host_id);
 
 DROP POLICY IF EXISTS "Hosts can update own properties" ON public.properties;
-CREATE POLICY "Hosts can update own properties" ON public.properties
+DROP POLICY IF EXISTS "Hosts can update own properties" ON public.properties;
+CREATE POLICY "Hosts can update own properties"
+  ON public.properties
     FOR UPDATE USING (auth.uid() = host_id);
 
 DROP POLICY IF EXISTS "Hosts can delete own properties" ON public.properties;
-CREATE POLICY "Hosts can delete own properties" ON public.properties
+DROP POLICY IF EXISTS "Hosts can delete own properties" ON public.properties;
+CREATE POLICY "Hosts can delete own properties"
+  ON public.properties
     FOR DELETE USING (auth.uid() = host_id);
 
 -- Property images policies
 DROP POLICY IF EXISTS "Anyone can view property images" ON public.property_images;
-CREATE POLICY "Anyone can view property images" ON public.property_images
+DROP POLICY IF EXISTS "Anyone can view property images" ON public.property_images;
+CREATE POLICY "Anyone can view property images"
+  ON public.property_images
     FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Hosts can insert images for own properties" ON public.property_images;
-CREATE POLICY "Hosts can insert images for own properties" ON public.property_images
+DROP POLICY IF EXISTS "Hosts can insert images for own properties" ON public.property_images;
+CREATE POLICY "Hosts can insert images for own properties"
+  ON public.property_images
     FOR INSERT WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.properties 
@@ -714,55 +746,79 @@ CREATE POLICY "Hosts can insert images for own properties" ON public.property_im
 
 -- Facilities policies
 DROP POLICY IF EXISTS "Anyone can view facilities" ON public.facilities;
-CREATE POLICY "Anyone can view facilities" ON public.facilities
+DROP POLICY IF EXISTS "Anyone can view facilities" ON public.facilities;
+CREATE POLICY "Anyone can view facilities"
+  ON public.facilities
     FOR SELECT USING (true);
 
 -- Property facilities policies
 DROP POLICY IF EXISTS "Anyone can view property facilities" ON public.property_facilities;
-CREATE POLICY "Anyone can view property facilities" ON public.property_facilities
+DROP POLICY IF EXISTS "Anyone can view property facilities" ON public.property_facilities;
+CREATE POLICY "Anyone can view property facilities"
+  ON public.property_facilities
     FOR SELECT USING (true);
 
 -- Roommate listings policies
 DROP POLICY IF EXISTS "Anyone can view active roommate listings" ON public.roommate_listings;
-CREATE POLICY "Anyone can view active roommate listings" ON public.roommate_listings
+DROP POLICY IF EXISTS "Anyone can view active roommate listings" ON public.roommate_listings;
+CREATE POLICY "Anyone can view active roommate listings"
+  ON public.roommate_listings
     FOR SELECT USING (is_active = TRUE);
 
 DROP POLICY IF EXISTS "Users can view own roommate listings" ON public.roommate_listings;
-CREATE POLICY "Users can view own roommate listings" ON public.roommate_listings
+DROP POLICY IF EXISTS "Users can view own roommate listings" ON public.roommate_listings;
+CREATE POLICY "Users can view own roommate listings"
+  ON public.roommate_listings
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert roommate listings" ON public.roommate_listings;
-CREATE POLICY "Users can insert roommate listings" ON public.roommate_listings
+DROP POLICY IF EXISTS "Users can insert roommate listings" ON public.roommate_listings;
+CREATE POLICY "Users can insert roommate listings"
+  ON public.roommate_listings
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own roommate listings" ON public.roommate_listings;
-CREATE POLICY "Users can update own roommate listings" ON public.roommate_listings
+DROP POLICY IF EXISTS "Users can update own roommate listings" ON public.roommate_listings;
+CREATE POLICY "Users can update own roommate listings"
+  ON public.roommate_listings
     FOR UPDATE USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own roommate listings" ON public.roommate_listings;
-CREATE POLICY "Users can delete own roommate listings" ON public.roommate_listings
+DROP POLICY IF EXISTS "Users can delete own roommate listings" ON public.roommate_listings;
+CREATE POLICY "Users can delete own roommate listings"
+  ON public.roommate_listings
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Favorites policies
 DROP POLICY IF EXISTS "Users can view own favorites" ON public.favorites;
-CREATE POLICY "Users can view own favorites" ON public.favorites
+DROP POLICY IF EXISTS "Users can view own favorites" ON public.favorites;
+CREATE POLICY "Users can view own favorites"
+  ON public.favorites
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert favorites" ON public.favorites;
-CREATE POLICY "Users can insert favorites" ON public.favorites
+DROP POLICY IF EXISTS "Users can insert favorites" ON public.favorites;
+CREATE POLICY "Users can insert favorites"
+  ON public.favorites
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own favorites" ON public.favorites;
-CREATE POLICY "Users can delete own favorites" ON public.favorites
+DROP POLICY IF EXISTS "Users can delete own favorites" ON public.favorites;
+CREATE POLICY "Users can delete own favorites"
+  ON public.favorites
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Bookings policies
 DROP POLICY IF EXISTS "Users can view own bookings" ON public.bookings;
-CREATE POLICY "Users can view own bookings" ON public.bookings
+DROP POLICY IF EXISTS "Users can view own bookings" ON public.bookings;
+CREATE POLICY "Users can view own bookings"
+  ON public.bookings
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Hosts can view bookings for their properties" ON public.bookings;
-CREATE POLICY "Hosts can view bookings for their properties" ON public.bookings
+DROP POLICY IF EXISTS "Hosts can view bookings for their properties" ON public.bookings;
+CREATE POLICY "Hosts can view bookings for their properties"
+  ON public.bookings
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM public.properties 
@@ -771,55 +827,79 @@ CREATE POLICY "Hosts can view bookings for their properties" ON public.bookings
     );
 
 DROP POLICY IF EXISTS "Users can insert bookings" ON public.bookings;
-CREATE POLICY "Users can insert bookings" ON public.bookings
+DROP POLICY IF EXISTS "Users can insert bookings" ON public.bookings;
+CREATE POLICY "Users can insert bookings"
+  ON public.bookings
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own bookings" ON public.bookings;
-CREATE POLICY "Users can update own bookings" ON public.bookings
+DROP POLICY IF EXISTS "Users can update own bookings" ON public.bookings;
+CREATE POLICY "Users can update own bookings"
+  ON public.bookings
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Payment methods policies
 DROP POLICY IF EXISTS "Users can view own payment methods" ON public.payment_methods;
-CREATE POLICY "Users can view own payment methods" ON public.payment_methods
+DROP POLICY IF EXISTS "Users can view own payment methods" ON public.payment_methods;
+CREATE POLICY "Users can view own payment methods"
+  ON public.payment_methods
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert payment methods" ON public.payment_methods;
-CREATE POLICY "Users can insert payment methods" ON public.payment_methods
+DROP POLICY IF EXISTS "Users can insert payment methods" ON public.payment_methods;
+CREATE POLICY "Users can insert payment methods"
+  ON public.payment_methods
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own payment methods" ON public.payment_methods;
-CREATE POLICY "Users can update own payment methods" ON public.payment_methods
+DROP POLICY IF EXISTS "Users can update own payment methods" ON public.payment_methods;
+CREATE POLICY "Users can update own payment methods"
+  ON public.payment_methods
     FOR UPDATE USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own payment methods" ON public.payment_methods;
-CREATE POLICY "Users can delete own payment methods" ON public.payment_methods
+DROP POLICY IF EXISTS "Users can delete own payment methods" ON public.payment_methods;
+CREATE POLICY "Users can delete own payment methods"
+  ON public.payment_methods
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Payments policies
 DROP POLICY IF EXISTS "Users can view own payments" ON public.payments;
-CREATE POLICY "Users can view own payments" ON public.payments
+DROP POLICY IF EXISTS "Users can view own payments" ON public.payments;
+CREATE POLICY "Users can view own payments"
+  ON public.payments
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert payments" ON public.payments;
-CREATE POLICY "Users can insert payments" ON public.payments
+DROP POLICY IF EXISTS "Users can insert payments" ON public.payments;
+CREATE POLICY "Users can insert payments"
+  ON public.payments
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Conversations policies
 DROP POLICY IF EXISTS "Users can view own conversations" ON public.conversations;
-CREATE POLICY "Users can view own conversations" ON public.conversations
+DROP POLICY IF EXISTS "Users can view own conversations" ON public.conversations;
+CREATE POLICY "Users can view own conversations"
+  ON public.conversations
     FOR SELECT USING (auth.uid() = user_id OR auth.uid() = other_user_id);
 
 DROP POLICY IF EXISTS "Users can insert conversations" ON public.conversations;
-CREATE POLICY "Users can insert conversations" ON public.conversations
+DROP POLICY IF EXISTS "Users can insert conversations" ON public.conversations;
+CREATE POLICY "Users can insert conversations"
+  ON public.conversations
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own conversations" ON public.conversations;
-CREATE POLICY "Users can update own conversations" ON public.conversations
+DROP POLICY IF EXISTS "Users can update own conversations" ON public.conversations;
+CREATE POLICY "Users can update own conversations"
+  ON public.conversations
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Messages policies
 DROP POLICY IF EXISTS "Users can view messages in their conversations" ON public.messages;
-CREATE POLICY "Users can view messages in their conversations" ON public.messages
+DROP POLICY IF EXISTS "Users can view messages in their conversations" ON public.messages;
+CREATE POLICY "Users can view messages in their conversations"
+  ON public.messages
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM public.conversations 
@@ -828,52 +908,76 @@ CREATE POLICY "Users can view messages in their conversations" ON public.message
     );
 
 DROP POLICY IF EXISTS "Users can insert messages" ON public.messages;
-CREATE POLICY "Users can insert messages" ON public.messages
+DROP POLICY IF EXISTS "Users can insert messages" ON public.messages;
+CREATE POLICY "Users can insert messages"
+  ON public.messages
     FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
 DROP POLICY IF EXISTS "Users can update own messages" ON public.messages;
-CREATE POLICY "Users can update own messages" ON public.messages
+DROP POLICY IF EXISTS "Users can update own messages" ON public.messages;
+CREATE POLICY "Users can update own messages"
+  ON public.messages
     FOR UPDATE USING (auth.uid() = sender_id);
 
 -- Reviews policies
 DROP POLICY IF EXISTS "Anyone can view visible reviews" ON public.reviews;
-CREATE POLICY "Anyone can view visible reviews" ON public.reviews
+DROP POLICY IF EXISTS "Anyone can view visible reviews" ON public.reviews;
+CREATE POLICY "Anyone can view visible reviews"
+  ON public.reviews
     FOR SELECT USING (is_visible = TRUE);
 
 DROP POLICY IF EXISTS "Users can view own reviews" ON public.reviews;
-CREATE POLICY "Users can view own reviews" ON public.reviews
+DROP POLICY IF EXISTS "Users can view own reviews" ON public.reviews;
+CREATE POLICY "Users can view own reviews"
+  ON public.reviews
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert reviews" ON public.reviews;
-CREATE POLICY "Users can insert reviews" ON public.reviews
+DROP POLICY IF EXISTS "Users can insert reviews" ON public.reviews;
+CREATE POLICY "Users can insert reviews"
+  ON public.reviews
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own reviews" ON public.reviews;
-CREATE POLICY "Users can update own reviews" ON public.reviews
+DROP POLICY IF EXISTS "Users can update own reviews" ON public.reviews;
+CREATE POLICY "Users can update own reviews"
+  ON public.reviews
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Notifications policies
 DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
-CREATE POLICY "Users can view own notifications" ON public.notifications
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
+CREATE POLICY "Users can view own notifications"
+  ON public.notifications
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert notifications" ON public.notifications;
-CREATE POLICY "Users can insert notifications" ON public.notifications
+DROP POLICY IF EXISTS "Users can insert notifications" ON public.notifications;
+CREATE POLICY "Users can insert notifications"
+  ON public.notifications
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
-CREATE POLICY "Users can update own notifications" ON public.notifications
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
+CREATE POLICY "Users can update own notifications"
+  ON public.notifications
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Search history policies
 DROP POLICY IF EXISTS "Users can view own search history" ON public.search_history;
-CREATE POLICY "Users can view own search history" ON public.search_history
+DROP POLICY IF EXISTS "Users can view own search history" ON public.search_history;
+CREATE POLICY "Users can view own search history"
+  ON public.search_history
     FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert search history" ON public.search_history;
-CREATE POLICY "Users can insert search history" ON public.search_history
+DROP POLICY IF EXISTS "Users can insert search history" ON public.search_history;
+CREATE POLICY "Users can insert search history"
+  ON public.search_history
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own search history" ON public.search_history;
-CREATE POLICY "Users can delete own search history" ON public.search_history
+DROP POLICY IF EXISTS "Users can delete own search history" ON public.search_history;
+CREATE POLICY "Users can delete own search history"
+  ON public.search_history
     FOR DELETE USING (auth.uid() = user_id);

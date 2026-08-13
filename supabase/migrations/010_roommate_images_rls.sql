@@ -1,5 +1,6 @@
 -- RLS policies for roommate_images
 -- Allow public to view images for active listings
+DROP POLICY IF EXISTS "Anyone can view roommate images" ON roommate_images;
 CREATE POLICY "Anyone can view roommate images"
   ON roommate_images
   FOR SELECT
@@ -7,6 +8,7 @@ CREATE POLICY "Anyone can view roommate images"
   USING (true);
 
 -- Allow authenticated users to insert images for their own listings
+DROP POLICY IF EXISTS "Users can insert roommate images" ON roommate_images;
 CREATE POLICY "Users can insert roommate images"
   ON roommate_images
   FOR INSERT
@@ -20,6 +22,7 @@ CREATE POLICY "Users can insert roommate images"
   );
 
 -- Allow authenticated users to delete images for their own listings
+DROP POLICY IF EXISTS "Users can delete roommate images" ON roommate_images;
 CREATE POLICY "Users can delete roommate images"
   ON roommate_images
   FOR DELETE
