@@ -97,7 +97,7 @@ BEGIN
     
     RETURN v_notification;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Function to get user's push tokens
 CREATE OR REPLACE FUNCTION get_user_push_tokens(p_user_id UUID)
@@ -208,7 +208,7 @@ BEGIN
     
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger for new messages
 DROP TRIGGER IF EXISTS trigger_notify_new_message ON messages;
@@ -268,7 +268,7 @@ BEGIN
     
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger for booking status changes
 DROP TRIGGER IF EXISTS trigger_notify_booking_status ON bookings;
@@ -312,7 +312,7 @@ BEGIN
     
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- ============================================================================
 -- Comments
