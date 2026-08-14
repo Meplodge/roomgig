@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { KeyRound, Monitor, Moon, Sun } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { Card, ErrorState, KeyValue, Skeleton } from '../components/ui';
 import { api } from '../lib/api';
@@ -64,6 +64,92 @@ const SettingRow = ({ setting, disabled, onSave, busy }) => {
         </>
       )}
     </div>
+  );
+};
+
+const ChangePasswordCard = () => {
+  const toast = useToast();
+  const { busy, run } = useAction(toast);
+  const [current, setCurrent] = useState('');
+  const next = useState('');
+  const confirm = useState('');
+
+  const [newPassword, setNewPassword] = next;
+  const [confirmPassword, setConfirmPassword] = confirm;
+
+  const valid =
+    current &&
+    newPassword.length >= 8 &&
+    newPassword === confirmPassword &&
+    newPassword !== current;
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!valid) return;
+    run(
+      () => api.post('/api/me/password', { currentPassword: current, newPassword }),
+      'Password updated'
+    ).then((result) => {
+      if (result) {
+        setCurrent('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    });
+  };
+
+  return (
+    <Card title="Change password">
+      <form className="col" style={{ gap: 'var(--space-3)' }} onSubmit={submit}>
+        <label className="col" style={{ gap: 6 }}>
+          <span className="micro-label">Current password</span>
+          <input
+            type="password"
+            className="input"
+            value={current}
+            autoComplete="current-password"
+            onChange={(e) => setCurrent(e.target.value)}
+            disabled={busy}
+            required
+          />
+        </label>
+        <label className="col" style={{ gap: 6 }}>
+          <span className="micro-label">New password (min 8 characters)</span>
+          <input
+            type="password"
+            className="input"
+            value={newPassword}
+            autoComplete="new-password"
+            onChange={(e) => setNewPassword(e.target.value)}
+            disabled={busy}
+            required
+          />
+        </label>
+        <label className="col" style={{ gap: 6 }}>
+          <span className="micro-label">Confirm new password</span>
+          <input
+            type="password"
+            className="input"
+            value={confirmPassword}
+            autoComplete="new-password"
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={busy}
+            required
+          />
+        </label>
+        {newPassword && confirmPassword && newPassword !== confirmPassword && (
+          <span className="tiny" style={{ color: 'var(--danger)' }}>
+            Passwords do not match.
+          </span>
+        )}
+        <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
+          <KeyRound size={15} /> Update password
+        </button>
+        <p className="tiny muted">
+          We verify your current password before accepting the new one.
+        </p>
+      </form>
+    </Card>
   );
 };
 
@@ -133,6 +219,8 @@ const SettingsPage = () => {
             Roles are managed on the Administrators page by a super admin.
           </p>
         </Card>
+
+        <ChangePasswordCard />
       </div>
 
       <Card className="flush" title="Platform configuration">

@@ -2,10 +2,32 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 
 const { supabase } = require('./supabase');
-const { requireAdmin } = require('./middleware/requireAdmin');
+const { requireAdmin, invalidateAll } = require('./middleware/requireAdmin');
+const { logAction } = require('./audit');
 const { asyncRoute } = require('./utils');
+
+/**
+ * Builds a throwaway Supabase client bound to the anon key, used only to verify
+ * an admin's current password by signing in. This MUST stay isolated from the
+ * shared service-role `supabase` client: supabase-js resolves the PostgREST
+ * Authorization header from `auth.getSession()` first and only falls back to
+ * the service key when there is no session. If we signed in on the shared
+ * client, every subsequent `supabase.from(...)` call would ride the user's JWT
+ * instead of the service-role key, RLS on admin_users would hide every row,
+ * and the dashboard would lock everyone out with "Could not verify admin
+ * access" until the process restarted.
+ */
+const anonClient = () =>
+  createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    }
+  );
 
 const analyticsRoutes = require('./routes/analytics');
 const usersRoutes = require('./routes/users');
@@ -73,6 +95,65 @@ app.get(
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', req.admin.id);
     res.json({ data: req.admin });
+  })
+);
+
+/**
+ * Lets the signed-in admin change their own password. We verify the current
+ * password by re-signing in with Supabase Auth before accepting the new one,
+ * so a stolen dashboard session cannot silently take over the account.
+ */
+app.post(
+  '/api/me/password',
+  asyncRoute(async (req, res) => {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ error: 'New password must be different from the current one' });
+    }
+
+    // Verify the current password by signing in on an ISOLATED anon-key client.
+    // See the anonClient() comment above for why this must not touch `supabase`.
+    const verifier = anonClient();
+    const { error: signInError } = await verifier.auth.signInWithPassword({
+      email: req.admin.email,
+      password: currentPassword,
+    });
+    if (signInError) {
+      return res.status(403).json({ error: 'Current password is incorrect' });
+    }
+    // Drop the session immediately so it can never leak anywhere.
+    await verifier.auth.signOut();
+
+    // Update the password using the service-role admin API. updateUserById sends
+    // the service-role key as Authorization and never consults the session, so
+    // this is safe to run on the shared client.
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      req.admin.auth_user_id,
+      { password: newPassword }
+    );
+    if (updateError) {
+      console.error('[me] password update failed:', updateError.message);
+      return res.status(500).json({ error: 'Could not update password' });
+    }
+
+    // The admin's existing dashboard session is still valid, but the password
+    // that backs it has changed. Clear the requireAdmin cache so any in-flight
+    // token re-validation starts fresh.
+    invalidateAll();
+
+    await logAction(req, {
+      action: 'admin.change_password',
+      table: 'admin_users',
+      id: req.admin.id,
+      reason: 'Self-service password change',
+    });
+    res.json({ data: { ok: true } });
   })
 );
 

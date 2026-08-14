@@ -1082,11 +1082,20 @@ export const getMessages = async (conversationId) => {
 };
 
 export const sendMessage = async (conversationId, senderId, content) => {
+  // Ensure the session is still valid before inserting — the React `user`
+  // object can be stale after the Supabase token expires, which causes
+  // auth.uid() to return NULL and the messages RLS policy to reject the row.
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.user) {
+    throw new Error('Session expired. Please sign in again to send messages.');
+  }
+  const authenticatedSenderId = session.user.id;
+
   const { data, error } = await supabase
     .from('messages')
     .insert({
       conversation_id: conversationId,
-      sender_id: senderId,
+      sender_id: authenticatedSenderId,
       content,
       status: 'sent'
     })
@@ -1104,13 +1113,13 @@ export const sendMessage = async (conversationId, senderId, content) => {
       .single();
 
     if (conversation) {
-      const recipientId = conversation.user_id === senderId
+      const recipientId = conversation.user_id === authenticatedSenderId
         ? conversation.other_user_id
         : conversation.user_id;
 
       const [recipient, sender] = await Promise.all([
         getProfileById(recipientId),
-        getProfileById(senderId),
+        getProfileById(authenticatedSenderId),
       ]);
 
       const { data: property } = conversation.property_id

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import {
   fetchNotifications,
@@ -21,7 +21,7 @@ export const NotificationsProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [subscription, setSubscription] = useState(null);
+  const subscriptionRef = useRef(null);
 
   // Load notifications when user changes
   useEffect(() => {
@@ -62,13 +62,13 @@ export const NotificationsProvider = ({ children }) => {
       setUnreadCount(prev => prev + 1);
     });
 
-    setSubscription(sub);
+    subscriptionRef.current = sub;
   };
 
   const cleanupSubscription = async () => {
-    if (subscription) {
-      await unsubscribeFromNotifications(subscription);
-      setSubscription(null);
+    if (subscriptionRef.current) {
+      await unsubscribeFromNotifications(subscriptionRef.current);
+      subscriptionRef.current = null;
     }
   };
 
@@ -147,7 +147,7 @@ export const NotificationsProvider = ({ children }) => {
     await cleanupSubscription();
     setNotifications([]);
     setUnreadCount(0);
-  }, [user?.id, subscription]);
+  }, [user?.id]);
 
   return (
     <NotificationsContext.Provider

@@ -496,8 +496,18 @@ export async function notifyNewReview(userId, reviewerName, rating, propertyTitl
 export function subscribeToNotifications(userId, onNewNotification) {
   if (!userId) return null;
 
+  const channelName = `notifications:${userId}`;
+
+  // Remove any existing channel with the same name to avoid
+  // "cannot add postgres_changes callbacks after subscribe()" errors
+  // when the effect re-runs (e.g. React Strict Mode double-mount).
+  const existing = supabase.getChannels().find(ch => ch.topic === channelName);
+  if (existing) {
+    supabase.removeChannel(existing);
+  }
+
   const subscription = supabase
-    .channel(`notifications:${userId}`)
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
