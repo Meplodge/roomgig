@@ -18,6 +18,7 @@ import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
 import Admins from './pages/Admins';
 import AuditLog from './pages/AuditLog';
+import EmailConfig from './pages/EmailConfig';
 import SettingsPage from './pages/Settings';
 import NotFound from './pages/NotFound';
 
@@ -96,6 +97,14 @@ const App = () => {
           element={
             <RoleRoute roles={['super_admin', 'admin']}>
               <AuditLog />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/email-config"
+          element={
+            <RoleRoute roles={['super_admin']}>
+              <EmailConfig />
             </RoleRoute>
           }
         />

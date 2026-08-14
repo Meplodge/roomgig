@@ -11,6 +11,7 @@ import {
   CreditCard,
   HelpCircle,
   LayoutDashboard,
+  Mail,
   MessagesSquare,
   PanelLeft,
   ScrollText,
@@ -170,6 +171,9 @@ const Sidebar = () => {
         <NavRow to="/analytics" icon={BarChart3} label="Analytics" collapsed={collapsed} />
         {can('super_admin') && (
           <NavRow to="/admins" icon={BadgeCheck} label="Admins" collapsed={collapsed} />
+        )}
+        {can('super_admin') && (
+          <NavRow to="/email-config" icon={Mail} label="Email Config" collapsed={collapsed} />
         )}
         {can('super_admin', 'admin') && (
           <NavRow to="/audit-log" icon={ScrollText} label="Audit Log" collapsed={collapsed} />

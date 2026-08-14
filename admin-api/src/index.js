@@ -41,6 +41,7 @@ const notificationsRoutes = require('./routes/notifications');
 const adminsRoutes = require('./routes/admins');
 const auditLogRoutes = require('./routes/auditLog');
 const settingsRoutes = require('./routes/settings');
+const emailConfigRoutes = require('./routes/emailConfig');
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -169,6 +170,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admins', adminsRoutes);
 app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/email-config', emailConfigRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Unknown endpoint' }));
 

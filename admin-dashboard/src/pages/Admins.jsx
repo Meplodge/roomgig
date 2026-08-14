@@ -39,7 +39,15 @@ const InviteModal = ({ onClose, onDone }) => {
             onClick={async () => {
               const result = await run(() => api.post('/api/admins', form), 'Administrator added');
               if (result) {
-                if (result.invited) toast.success('Invite email sent so they can set a password.');
+                if (result.invited) {
+                  if (result.tempPassword) {
+                    toast.success(
+                      `Email could not be sent. Share this temp password manually: ${result.tempPassword}`
+                    );
+                  } else {
+                    toast.success('Invite email sent with a temporary password.');
+                  }
+                }
                 onDone();
                 onClose();
               }
@@ -52,8 +60,8 @@ const InviteModal = ({ onClose, onDone }) => {
       }
     >
       <p className="tiny muted">
-        If no Supabase Auth account exists for this email, one is created and an invite is sent so
-        they can choose their own password.
+        If no account exists for this email, one is created with a temporary password and an invite
+        email is sent so they can sign in and change it.
       </p>
       <div className="field">
         <label htmlFor="a-email">Email</label>

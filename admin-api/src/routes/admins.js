@@ -1,4 +1,5 @@
 const express = require('express');
+const { randomBytes } = require('crypto');
 const { supabase } = require('../supabase');
 const { requireRole, invalidateAll } = require('../middleware/requireAdmin');
 const { logAction } = require('../audit');
@@ -7,6 +8,47 @@ const { asyncRoute, throwOnSupabaseError, badRequest, notFound } = require('../u
 const router = express.Router();
 
 const ROLES = ['super_admin', 'admin', 'moderator', 'analyst'];
+
+/**
+ * Sends the admin invite email (with a temporary password) through the
+ * email-notifications microservice instead of relying on Supabase's built-in
+ * email service. Failures are logged but never block admin creation, so the
+ * super admin can still share the temp password out-of-band.
+ */
+const sendInviteEmail = async ({ email, fullName, role, tempPassword }) => {
+  const emailApiUrl = (process.env.EMAIL_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const dashboardUrl = process.env.ADMIN_DASHBOARD_ORIGIN || 'http://localhost:5173';
+  const name = fullName || 'there';
+
+  const html = `<p>Hi ${name},</p>
+<p>You have been added as a <strong>${role}</strong> on the RoomGig Admin Dashboard.</p>
+<p>Sign in at <a href="${dashboardUrl}">${dashboardUrl}</a> with:</p>
+<ul>
+  <li><strong>Email:</strong> ${email}</li>
+  <li><strong>Temporary password:</strong> <code>${tempPassword}</code></li>
+</ul>
+<p>Please change your password immediately after signing in (Settings &rarr; Change password).</p>
+<p>&mdash; RoomGig</p>`;
+
+  const text = `Hi ${name}, you have been added as a ${role} on the RoomGig Admin Dashboard. Sign in at ${dashboardUrl} with email: ${email} and temporary password: ${tempPassword}. Please change your password immediately after signing in.`;
+
+  try {
+    const response = await fetch(`${emailApiUrl}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: email, subject: 'You are invited to the RoomGig Admin Dashboard', html, text }),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      console.error('[admins] invite email send failed:', response.status, body);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[admins] invite email send error:', err.message);
+    return false;
+  }
+};
 
 router.get(
   '/',
@@ -47,16 +89,23 @@ router.post(
     }
 
     let invited = false;
+    let tempPassword = null;
     if (!authUser) {
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: fullName },
+      // Create the auth user directly with a temporary password and send the
+      // invite email through our own email-notifications service, instead of
+      // relying on Supabase's built-in invite email (which needs Supabase SMTP
+      // to be configured separately).
+      tempPassword = `Rg-${randomBytes(12).toString('base64url')}`;
+      const { data, error } = await supabase.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
       });
       if (error) {
-        console.error('[admins] invite failed:', error.message);
+        console.error('[admins] create user failed:', error.message);
         throw Object.assign(
-          new Error(
-            'Could not invite that email. Check that SMTP is configured in Supabase, or create the auth user first.'
-          ),
+          new Error('Could not create the auth user: ' + error.message),
           { status: 400 }
         );
       }
@@ -86,7 +135,22 @@ router.post(
       after: data,
       reason: req.body.reason,
     });
-    res.status(201).json({ data, invited });
+
+    // Send the invite email (with temp password) through our email service.
+    // Done after the row is committed so a failed email doesn't leave a
+    // dangling admin_users row. The temp password is returned to the super
+    // admin only if the email could not be sent, so they can share it
+    // out-of-band.
+    let emailSent = false;
+    if (invited && tempPassword) {
+      emailSent = await sendInviteEmail({ email, fullName, role, tempPassword });
+    }
+
+    res.status(201).json({
+      data,
+      invited,
+      tempPassword: invited && !emailSent ? tempPassword : undefined,
+    });
   })
 );
 
